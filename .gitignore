@@ -1,7 +1,12 @@
 # 构建产物
 build/bin/
-frontend/dist/
 frontend/node_modules/
+
+# dist 是前端构建产物，但目录本身必须进仓库：
+# main.go 用 //go:embed all:frontend/dist 嵌入前端，全新 clone 后目录不存在会让
+# go vet / go build 直接失败（CI 第一次跑就栽在这）。所以只忽略内容、保留占位文件。
+frontend/dist/*
+!frontend/dist/.gitkeep
 
 # UI 回归验证的临时产物（由 tools/ui-verify/verify.sh 重建）
 tools/ui-verify/verify-dist/

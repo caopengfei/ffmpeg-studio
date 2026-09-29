@@ -1,0 +1,2 @@
+# 占位文件：保证 frontend/dist 目录存在于仓库中。
+# go:embed all:frontend/dist 需要该目录至少有一个文件才能编译（详见 .gitignore 注释）。
