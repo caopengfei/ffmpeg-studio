@@ -1,0 +1,9 @@
+# 构建产物
+build/bin/
+frontend/dist/
+frontend/node_modules/
+
+# UI 回归验证的临时产物（由 tools/ui-verify/verify.sh 重建）
+tools/ui-verify/verify-dist/
+tools/ui-verify/*.png
+tools/ui-verify/result.json

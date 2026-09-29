@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>水印时间轴复现</title>
+<style>
+:root {
+  --border: #e5e6eb;
+  --primary: #2563eb;
+  --primary-soft: #eff6ff;
+  --text-mute: #9aa0aa;
+  --text-dim: #6b7280;
+  --radius-sm: 6px;
+}
+body { font-family: system-ui, sans-serif; padding: 24px; background: #fff; }
+
+/* ===== 以下 CSS 从 WatermarkTab.vue 原样复制 ===== */
+.tl { margin-top: 12px; width: 700px; }
+
+.tl-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.tl-clock { font-size: 11.5px; color: var(--text-dim); flex: none; }
+
+.tl-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+  background: #f2f4f7;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: crosshair;
+  touch-action: none;
+  min-height: 34px;
+}
+
+.tl-empty { padding: 3px 10px; font-size: 11.5px; color: var(--text-mute); }
+
+.tl-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 15px;
+  border-radius: 4px;
+  background: #a5b4fc;
+  color: #312e81;
+  font-size: 10px;
+  line-height: 1;
+  cursor: grab;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  user-select: none;
+  min-width: 26px;
+}
+
+.tl-bar.text { background: #fcd34d; color: #78350f; }
+.tl-bar.sel { outline: 2px solid var(--primary); outline-offset: -1px; }
+.tl-bar.off { opacity: 0.3; }
+.tl-bar:active { cursor: grabbing; }
+
+.tl-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  cursor: ew-resize;
+  z-index: 3;
+  transition: background 0.12s;
+}
+.tl-grip.left { left: 0; border-radius: 4px 0 0 4px; }
+.tl-grip.right { right: 0; border-radius: 0 4px 4px 0; }
+.tl-grip:hover { background: rgba(0, 0, 0, 0.5); }
+
+.tl-label {
+  padding: 0 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.tl-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #ef4444;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tl-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--text-mute);
+}
+</style>
+</head>
+<body>
+
+<div class="tl">
+  <div class="tl-head">
+    <span>时间轴 · 拖两端调起止时间，拖中段平移</span>
+    <span class="tl-clock" id="clock">0.00 / 12.00</span>
+  </div>
+
+  <div class="tl-track" id="track">
+    <!-- 占位由脚本生成 -->
+  </div>
+
+  <div class="tl-scale">
+    <span>0:00</span><span>0:06</span><span>0:12</span>
+  </div>
+</div>
+
+<script>
+/* ===== 以下逻辑从 WatermarkTab.vue / watermarkTime.js 原样复制 ===== */
+const MIN_SPAN = 0.1
+const round2 = (v) => Math.round(v * 100) / 100
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
+
+function spanOf(item, duration) {
+  const d = duration || 1
+  const start = Number(item?.start) || 0
+  const rawEnd = Number(item?.end) || 0
+  const end = rawEnd > start ? rawEnd : d
+  return { start, end, duration: d }
+}
+
+function applyResize(item, side, delta, duration) {
+  const { start: oS, end: oE, duration: d } = spanOf(item, duration)
+  if (side === 'start') {
+    const v = clamp(oS + delta, 0, oE - MIN_SPAN)
+    return { start: round2(v), end: round2(oE) }
+  }
+  const v = clamp(oE + delta, oS + MIN_SPAN, d)
+  return { start: round2(oS), end: round2(v) }
+}
+
+function applyMove(item, delta, duration) {
+  const { start: oS, end: oE, duration: d } = spanOf(item, duration)
+  const len = Math.max(MIN_SPAN, oE - oS)
+  const s = clamp(oS + delta, 0, Math.max(0, d - len))
+  return { start: round2(s), end: round2(s + len) }
+}
+
+const DURATION = 12
+let currentTime = 6
+const items = [
+  { id: 'a', kind: 'text', enabled: true, label: '全程序号', hasTime: false, start: 0, end: 0 },
+  { id: 'b', kind: 'text', enabled: true, label: '片尾标', hasTime: true, start: 5, end: 8 },
+]
+
+const trackEl = document.getElementById('track')
+
+function barStyle(it) {
+  const { start, end, duration: d } = spanOf(it, DURATION)
+  const s = clamp(start, 0, d)
+  const e = clamp(end, 0, d)
+  return { left: (s / d) * 100 + '%', width: Math.max(1, ((e - s) / d) * 100) + '%' }
+}
+
+function barLabel(it) {
+  if (!it.hasTime) return ''
+  const { start, end } = spanOf(it, DURATION)
+  return `${start.toFixed(1)}–${end.toFixed(1)}`
+}
+
+function isSelected(id) { return id === 'b' }
+
+const els = {}
+
+function render() {
+  trackEl.innerHTML = ''
+  for (const it of items) {
+    const bar = document.createElement('div')
+    bar.className = 'tl-bar' + (it.kind === 'text' ? ' text' : '') + (isSelected(it.id) ? ' sel' : '')
+    Object.assign(bar.style, barStyle(it))
+    bar.title = it.label
+
+    const gL = document.createElement('span')
+    gL.className = 'tl-grip left'
+    gL.addEventListener('pointerdown', (e) => resizeBar(it, 'start', e))
+
+    const lab = document.createElement('span')
+    lab.className = 'tl-label'
+    lab.textContent = barLabel(it)
+
+    const gR = document.createElement('span')
+    gR.className = 'tl-grip right'
+    gR.addEventListener('pointerdown', (e) => resizeBar(it, 'end', e))
+
+    bar.appendChild(gL)
+    bar.appendChild(lab)
+    bar.appendChild(gR)
+    bar.addEventListener('pointerdown', (e) => moveBar(it, e))
+    trackEl.appendChild(bar)
+    els[it.id] = { bar, gL, gR }
+  }
+
+  const ph = document.createElement('div')
+  ph.className = 'tl-playhead'
+  ph.style.left = (currentTime / DURATION) * 100 + '%'
+  trackEl.appendChild(ph)
+  els.playhead = { bar: ph }
+}
+
+function resizeBar(it, side, e) {
+  e.preventDefault()
+  e.stopPropagation()
+
+  const rect = trackEl.getBoundingClientRect()
+  const d = DURATION || 1
+  const base = spanOf(it, d)
+  const startX = e.clientX
+  let activated = false
+  let moves = 0
+
+  const move = (ev) => {
+    const dx = ev.clientX - startX
+    if (!activated) {
+      if (Math.abs(dx) < 3) return
+      activated = true
+      it.hasTime = true
+    }
+    moves++
+    const delta = (dx / rect.width) * d
+    const next = applyResize(base, side, delta, d)
+    it.start = next.start
+    it.end = next.end
+    render()
+  }
+
+  const up = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+    window.__lastResize = { id: it.id, side, activated, moves }
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up)
+}
+
+function moveBar(it, e) {
+  e.preventDefault()
+  e.stopPropagation()
+
+  if (!it.hasTime) return
+
+  const rect = trackEl.getBoundingClientRect()
+  const d = DURATION || 1
+  const base = spanOf(it, d)
+  const startX = e.clientX
+  let activated = false
+  let moves = 0
+
+  const move = (ev) => {
+    const dx = ev.clientX - startX
+    if (!activated) {
+      if (Math.abs(dx) < 3) return
+      activated = true
+    }
+    moves++
+    const delta = (dx / rect.width) * d
+    const next = applyMove(base, delta, d)
+    it.start = next.start
+    it.end = next.end
+    render()
+  }
+
+  const up = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+    window.__lastMove = { id: it.id, activated, moves }
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up)
+}
+
+render()
+
+/* 供测试读取的探针 */
+window.__probe = () => {
+  const t = trackEl.getBoundingClientRect()
+  const read = (el) => {
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return { left: Math.round(r.left - t.left), width: Math.round(r.width), height: Math.round(r.height) }
+  }
+  return {
+    track: { width: Math.round(t.width), height: Math.round(t.height), left: Math.round(t.left), top: Math.round(t.top) },
+    bars: items.map((it) => ({
+      id: it.id,
+      hasTime: it.hasTime,
+      start: it.start,
+      end: it.end,
+      ...read(els[it.id]?.bar),
+      gripL: read(els[it.id]?.gL),
+      gripR: read(els[it.id]?.gR),
+    })),
+    playhead: read(els.playhead?.bar),
+  }
+}
+
+window.__state = () => items.map((i) => ({ id: i.id, hasTime: i.hasTime, start: i.start, end: i.end }))
+</script>
+</body>
+</html>
