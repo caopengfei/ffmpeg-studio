@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 同一分支连续推送时取消上一次，别占着 runner 排队
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: 后端（Go）
+    # 项目主要在 Windows 上开发（有 proc_windows.go 这类平台实现），
+    # 而 windows-latest 预装了 ffmpeg，集成测试能真跑起来
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: 静态检查
+        run: go vet ./...
+
+      # 找不到 ffmpeg 的用例会自动 Skip（见 locateFFmpeg helper），
+      # 所以这里不需要降级参数，缺环境也不会变红
+      - name: 单元 + 集成测试
+        run: go test ./... -count=1
+
+  frontend:
+    name: 前端（Vue）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 纯函数用例
+        run: npm test
+
+      - name: 构建
+        run: npm run build
+
+  build:
+    name: 构建 exe
+    runs-on: windows-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: 安装 Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # 必须先生成前端产物：后端用 //go:embed all:frontend/dist 嵌进去，
+      # dist 不存在会直接编译失败
+      - name: 构建前端
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: 构建 exe
+        run: go build -tags production -ldflags "-H windowsgui -s -w" -o build/bin/ffmpeg-studio.exe .
+
+      - name: 检查产物
+        shell: pwsh
+        run: |
+          $exe = Get-Item build/bin/ffmpeg-studio.exe
+          $mb = [math]::Round($exe.Length / 1MB, 1)
+          Write-Host "产物大小: $mb MB"
+          # 正常约 11~12 MB。明显偏小说明前端没被嵌进去
+          if ($exe.Length -lt 8MB) {
+            throw "产物只有 $mb MB，前端可能没嵌进去"
+          }
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: ffmpeg-studio-windows
+          path: build/bin/ffmpeg-studio.exe
+          retention-days: 7
+          if-no-files-found: error

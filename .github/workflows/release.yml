@@ -1,0 +1,90 @@
+name: Release
+
+# 打 tag 即发版：git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # 创建 Release 需要
+
+jobs:
+  release:
+    name: 构建并发布
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 安装 Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: 安装 Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # 发版前把关：跑一遍测试再出包，别把坏的版本发出去
+      - name: 后端测试
+        run: go test ./... -count=1
+
+      - name: 构建前端
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: 构建 exe
+        run: go build -tags production -ldflags "-H windowsgui -s -w" -o build/bin/ffmpeg-studio.exe .
+
+      - name: 检查产物并生成校验值
+        shell: pwsh
+        run: |
+          $exe = Get-Item build/bin/ffmpeg-studio.exe
+          $mb = [math]::Round($exe.Length / 1MB, 1)
+          Write-Host "产物大小: $mb MB"
+          if ($exe.Length -lt 8MB) {
+            throw "产物只有 $mb MB，前端可能没嵌进去"
+          }
+
+          $hash = (Get-FileHash build/bin/ffmpeg-studio.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  ffmpeg-studio.exe" | Out-File -Encoding ascii build/bin/SHA256SUMS.txt
+          Write-Host "SHA256: $hash"
+
+      - name: 发布到 Releases
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            build/bin/ffmpeg-studio.exe
+            build/bin/SHA256SUMS.txt
+          body: |
+            ## 下载
+
+            **`ffmpeg-studio.exe`** —— 单文件，双击即用，无需安装，约 11 MB。
+
+            ### 首次运行
+
+            程序需要 ffmpeg 才能干活，但没有随包分发（官方完整版单个 exe 就有 212 MB）。
+            首次启动会提示缺少 ffmpeg，点「**自动下载并安装**」即可 —— 它会自动下载、
+            解压到程序旁并启用，约 110 MB，有进度条。
+
+            网络受限时也可以点「我要手动装」：自己下载 ffmpeg 后把文件夹放到 exe 旁边，
+            程序会自动识别（会往下找三层，带目录名也没关系）。
+
+            ### 校验
+
+            下载后可比对 `SHA256SUMS.txt` 确认文件完整：
+
+            ```powershell
+            Get-FileHash .\ffmpeg-studio.exe -Algorithm SHA256
+            ```
+
+            ### 说明
+
+            - 所有处理在本机完成，不联网、不上传
+            - 仅在 Windows 10/11 上验证过
