@@ -100,6 +100,20 @@ bash tools/ui-verify/verify.sh   # UI 回归：真实浏览器 + 真实指针事
 
 详细实现与踩坑记录见 **[docs/DESIGN.md](docs/DESIGN.md)**。
 
+CI 在 push 到 `main` 和 PR 时自动跑上面这些（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）。
+找不到 ffmpeg 的用例会自动跳过，所以 CI 不会因为环境缺 ffmpeg 而误报失败 ——
+但最后的构建任务会验证 exe 真能编出来，并检查产物大小（前端没嵌进去时编译"成功"但文件明显偏小）。
+
+## 发版
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+推送 `v*` tag 会触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)：
+先跑一遍测试 → 构建 exe → 生成 `SHA256SUMS.txt` → 发布到 Releases。
+
 ## 已知限制
 
 - **只在 Windows 上测过**。代码里有 macOS / Linux 分支（ffmpeg 探测路径、打开文件的命令），
