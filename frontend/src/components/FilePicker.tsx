@@ -36,8 +36,12 @@ export default function FilePicker({ value, accept = 'media', label = '', onChan
       setHovering(false);
       if (!paths || !paths.length) return;
       // 先注册成后端可访问的 URL，再 onChange；不 await 会把 Promise 透传成 value
-      const f = await api.registerFile(paths[0]);
-      if (f) onChangeRef.current(f);
+      try {
+        const f = await api.registerFile(paths[0]);
+        if (f) onChangeRef.current(f);
+      } catch {
+        /* 拖放注册失败时忽略 */
+      }
     });
     return () => {
       if (typeof off === 'function') off();
