@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Input, ToggleButton, ToggleButtonGroup } from '@heroui/react';
 import FilePicker from '../components/FilePicker';
 import MediaInfoCard from '../components/MediaInfoCard';
@@ -126,18 +126,19 @@ export default function ResizeTab() {
 
   // 源本身小于 720p 时，默认按源尺寸，避免无意义的放大。
   // path-keyed：只在新文件的 info 首次到达时跑一次，不跟用户的 preset 选择打架。
-  const [lastInitFor, setLastInitFor] = useState('');
+  const initKey = useRef('');
   useEffect(() => {
-    if (file && info && lastInitFor !== file.path) {
-      setLastInitFor(file.path);
-      const v = info?.video;
-      if (v) {
-        const w = v.width;
-        if (w && w < 1280) {
-          setPreset('custom');
-          setWidth(w % 2 === 0 ? w : w - 1);
-          setHeight(v.height % 2 === 0 ? v.height : v.height - 1);
-        }
+    if (!file || !info) return;
+    const key = `${file.path}::${info.duration ?? ''}::${info.size ?? ''}`;
+    if (initKey.current === key) return;
+    initKey.current = key;
+    const v = info?.video;
+    if (v) {
+      const w = v.width;
+      if (w && w < 1280) {
+        setPreset('custom');
+        setWidth(w % 2 === 0 ? w : w - 1);
+        setHeight(v.height % 2 === 0 ? v.height : v.height - 1);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

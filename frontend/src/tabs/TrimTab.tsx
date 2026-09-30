@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Input } from '@heroui/react';
 import FilePicker from '../components/FilePicker';
 import MediaInfoCard from '../components/MediaInfoCard';
@@ -21,12 +21,13 @@ export default function TrimTab() {
   // load 是异步的：await load(f) 之后读 info 拿到的是闭包里的旧值（React state
   // 不会同步更新，Vue ref 会）。所以用 path-keyed useEffect，等 info 到位后
   // 给新文件初始化一次 range，不跟用户后续的手动调整打架。
-  const [lastInitFor, setLastInitFor] = useState('');
+  const initKey = useRef('');
   useEffect(() => {
-    if (file && info && lastInitFor !== file.path) {
-      setLastInitFor(file.path);
-      setRange({ start: 0, end: info.duration || 0 });
-    }
+    if (!file || !info) return;
+    const key = `${file.path}::${info.duration ?? ''}::${info.size ?? ''}`;
+    if (initKey.current === key) return;
+    initKey.current = key;
+    setRange({ start: 0, end: info.duration || 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, info]);
 
