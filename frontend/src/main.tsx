@@ -1,13 +1,11 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import App from './App'
 import './index.css'
 
-function Placeholder() {
-  return <main style={{ padding: 24 }}>ffmpeg-studio (React 迁移中)</main>
-}
-
+// 注：HeroUI v3 无需 Provider 包裹（零样板），直接渲染 App。
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <Placeholder />
+    <App />
   </React.StrictMode>,
 )
