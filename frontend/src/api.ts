@@ -28,7 +28,7 @@ export const api = {
   preparePreview: (path: string): Promise<any> => Backend.PreparePreview(path),
   mediaURL: (path: string): Promise<string> => Backend.MediaURL(path),
   previewCommand: (spec: any): Promise<{ steps: string[]; err: string }> => Backend.PreviewCommand(spec),
-  startTask: (spec: any): Promise<void> => Backend.StartTask(spec),
+  startTask: (spec: any): Promise<string> => Backend.StartTask(spec),
   cancelTask: (id = ''): Promise<void> => Backend.CancelTask(id),
   taskBusy: (): Promise<boolean> => Backend.TaskBusy(),
   suggestOutputPath: (input: string, kind: string): Promise<string> => Backend.SuggestOutputPath(input, kind),
