@@ -87,6 +87,11 @@ jobs:
           npm ci
           npm run build
 
+      # 裸 go build 不嵌图标：先用 go-winres 把 build/windows/icon.ico 打成 .syso，
+      # go build 会自动链进去（.syso 已进 .gitignore，CI 每次现打）
+      - name: 嵌入图标与 manifest
+        run: go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64 --icon build/windows/icon.ico --manifest gui --out rsrc --product-name ffmpeg-studio --file-description "FFmpeg Studio" --original-filename ffmpeg-studio.exe
+
       - name: 构建 exe
         run: go build -tags production -ldflags "-H windowsgui -s -w" -o build/bin/ffmpeg-studio.exe .
 
