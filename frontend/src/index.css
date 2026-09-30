@@ -603,6 +603,24 @@ textarea:focus {
   border-color: var(--primary);
 }
 
+/* 数字输入框（AppNumber）：HeroUI Input 自带的皮偏大，这里收到与旁边
+   文本输入框一致的高度与字号，否则同一行里高低不齐 */
+.app-number {
+  width: 100%;
+  min-height: 0;
+  height: 30px;
+  padding: 4px 9px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.app-number:disabled,
+.app-number[data-disabled] {
+  background: #f6f7f9;
+  color: var(--text-mute);
+  cursor: not-allowed;
+}
+
 input:disabled {
   background: #f6f7f9;
   color: var(--text-mute);

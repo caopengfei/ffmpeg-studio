@@ -1,8 +1,13 @@
-// HeroUI v3 NumberField (compound) 封装：对外 number；空输入按 0 发出，失焦夹取
-// 说明：Vue 版的 echo-back 守卫（输入中不重写输入框）由 RAC NumberField 内部的
-// inputValue 状态承担——受控 value 回环为同一数字时不触碰正在编辑的文本；
-// 外部传入不同数字时才同步显示。
-import { NumberField } from '@heroui/react';
+// 纯数字输入框（无 +/− 步进按钮）。
+//
+// 不用 HeroUI NumberField：它的组是 :has(slot) 切出的 40px|1fr|40px 三列，
+// 两颗步进按钮夹在输入框两侧显得笨重（宽 60~1280 这类精调参数用不上步进，
+// 还容易误点）。这里改用单个 Input，保留 NumberField 时期的三件事：
+//   - 空输入按 0 发出
+//   - 失焦按 min/max 夹取并回写
+//   - 输入过程中不回写（本地草稿态），外部值变化才同步
+import { Input } from '@heroui/react';
+import { useEffect, useRef, useState } from 'react';
 
 interface AppNumberProps {
   value: number;
@@ -16,8 +21,6 @@ interface AppNumberProps {
   onChange: (v: number) => void;
 }
 
-const NO_GROUPING: Intl.NumberFormatOptions = { useGrouping: false };
-
 function clamp(v: number, min?: number, max?: number): number {
   let r = v;
   if (min !== undefined) r = Math.max(min, r);
@@ -27,31 +30,60 @@ function clamp(v: number, min?: number, max?: number): number {
 
 export default function AppNumber({ value, min, max, step = 1, disabled = false, placeholder = '', label, onChange }: AppNumberProps) {
   const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0;
+  // 草稿态：用户正在敲的内容与外部 value 不一定一致，直接受控会把输入打断
+  const [draft, setDraft] = useState(String(safe));
+  const editing = useRef(false);
+
+  // 外部值变了才同步显示；自己刚 emit 出去的值回环时不重写输入框
+  useEffect(() => {
+    if (editing.current) return;
+    setDraft(String(safe));
+  }, [safe]);
+
+  function commit(text: string) {
+    const n = Number(text);
+    return text === '' || Number.isNaN(n) ? 0 : n;
+  }
+
   return (
-    <NumberField
-      value={safe}
-      minValue={min}
-      maxValue={max}
-      step={step}
-      isDisabled={disabled}
-      formatOptions={NO_GROUPING}
+    <Input
+      className="app-number"
+      // 数字框用 inputMode 而非 type=number：后者有原生步进箭头，
+      // 滚轮又会误改数值，中文输入法还会顶出上下箭头
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      value={draft}
+      placeholder={placeholder}
+      disabled={disabled}
       aria-label={label}
-      onChange={(v) => onChange(Number.isNaN(v) ? 0 : v)}
-    >
-      {/* 注意子元素顺序：HeroUI 用 :has(slot) 把组切成 40px | 1fr | 40px 三列，
-          依次放 decrement / input / increment。input 放第一个会被塞进 40px 列
-          （曾因此导致输入框被压扁、数字显示不全），必须按这个顺序写 */}
-      <NumberField.Group>
-        <NumberField.DecrementButton />
-        <NumberField.Input
-          placeholder={placeholder}
-          onBlur={() => {
-            const c = clamp(safe, min, max);
-            if (c !== safe) onChange(c);
-          }}
-        />
-        <NumberField.IncrementButton />
-      </NumberField.Group>
-    </NumberField>
+      onFocus={() => {
+        editing.current = true;
+      }}
+      onChange={(e) => {
+        const text = e.target.value;
+        // 只留数字与小数点，第二个及之后的小数点连同其后的内容一并截掉
+        // （用正则整体匹配会误伤 "2."：回溯时空捕获组可为空，"2." 会被清成空串）
+        const parts = text.replace(/[^\d.]/g, '').split('.');
+        const cleaned = parts.length > 2 ? `${parts[0]}.${parts[1]}` : parts.join('.');
+        setDraft(cleaned);
+        onChange(commit(cleaned));
+      }}
+      onBlur={() => {
+        editing.current = false;
+        const c = clamp(commit(draft), min, max);
+        setDraft(String(c));
+        if (c !== safe) onChange(c);
+      }}
+      onKeyDown={(e) => {
+        // 上下键按 step 微调，配合 min/max 夹取
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        const dir = e.key === 'ArrowUp' ? 1 : -1;
+        const n = clamp(commit(draft) + dir * (step || 1), min, max);
+        setDraft(String(n));
+        onChange(n);
+      }}
+    />
   );
 }
