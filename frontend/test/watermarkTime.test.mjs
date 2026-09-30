@@ -10,7 +10,7 @@ import {
   timeSummary,
   targetSeekFor,
   round2,
-} from '../src/composables/watermarkTime.js'
+} from '../src/lib/watermarkTime.js'
 
 const D = 60 // 假设视频 60 秒
 
