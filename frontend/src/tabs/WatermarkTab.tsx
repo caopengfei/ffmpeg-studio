@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import FilePicker from '../components/FilePicker';
 import MediaInfoCard from '../components/MediaInfoCard';
 import CommandPreview from '../components/CommandPreview';
 import ProgressPanel from '../components/ProgressPanel';
-import { api } from '../api';
+import { api, formatTime } from '../api';
 import AppSelect from '../ui/AppSelect';
 import AppSlider from '../ui/AppSlider';
 import AppNumber from '../ui/AppNumber';
@@ -16,7 +17,9 @@ import { useMediaSource } from '../hooks/useMediaSource';
 import { useCommandPreview } from '../hooks/useCommandPreview';
 import { baseFields } from '../hooks/baseFields';
 // 时间段计算与 Vue 版共用同一份实现（lib/watermarkTime.js，有独立的 node --test 用例）
-import { clamp, timeSummary } from '../lib/watermarkTime';
+import { clamp, spanOf, inRange, applyResize, applyMove, timeSummary, targetSeekFor } from '../lib/watermarkTime';
+// 水印缩放的几何计算，同样有独立的 node --test 用例
+import { scaleFromDrag, IMAGE_RATIO_RANGE, TEXT_RATIO_RANGE } from '../lib/watermarkLayout';
 
 export default function WatermarkTab() {
   const { file, info, loadingInfo, probeError, outPath, setOutPath, previewURL, previewNote, preparing, load } =
@@ -24,7 +27,6 @@ export default function WatermarkTab() {
 
   const [items, setItems] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState('');
-  const [showSafe, setShowSafe] = useState(false);
   const [targetMode, setTargetMode] = useState('source'); // source | 720 | 1080
   const seq = useRef(0);
 
@@ -33,12 +35,13 @@ export default function WatermarkTab() {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   }
 
-  function replaceItem(id: string, fn: (it: any) => any) {
-    setItems((prev) => prev.map((it) => (it.id === id ? fn(it) : it)));
-  }
-
   const selected = items.find((i) => i.id === selectedId) || null;
   const activeCount = items.filter((i) => i.enabled).length;
+
+  // 删除后自动重选：函数式更新 + effect 兜底（闭包里的 items 可能已过期）
+  useEffect(() => {
+    if (selectedId && !items.some((i) => i.id === selectedId)) setSelectedId(items[0]?.id ?? '');
+  }, [items, selectedId]);
 
   // 预览里的画面尺寸：位置和大小全部按比例存放，所以改输出分辨率也不会跑偏
   let outW = 1920;
@@ -52,18 +55,357 @@ export default function WatermarkTab() {
 
   const duration = info?.duration || 0;
 
+  /* ---------- 预览舞台 ---------- */
+
+  const stageEl = useRef<HTMLDivElement | null>(null);
+  const stageBoxEl = useRef<HTMLDivElement | null>(null);
+  const videoEl = useRef<HTMLVideoElement | null>(null);
+  const tlEl = useRef<HTMLDivElement | null>(null);
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
+  const [currentTime, setCurrentTime] = useState(0);
+  const [tlTip, setTlTip] = useState('');
+  const tlTipTimer = useRef<any>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
+
+  // 给 window 监听器 / pointerup 闭包用的最新值镜像（setItems 是异步的，闭包里的 state 会过期）
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
+
+  // 预览舞台的像素尺寸。
+  // 必须由 JS 精确算出，不能靠 CSS 撑开：只要舞台尺寸和视频内容区域有偏差，
+  // 水印位置就会整体偏移，所见即所得就失效了。
+  function relayout() {
+    const box = stageBoxEl.current;
+    if (!box) return;
+    const avail = box.clientWidth || 640;
+    const vw = info?.video?.width || 16;
+    const vh = info?.video?.height || 9;
+    const maxH = Math.min(window.innerHeight * 0.6, 500);
+
+    let w = avail;
+    let h = (w * vh) / vw;
+    if (h > maxH) {
+      h = maxH;
+      w = (h * vw) / vh;
+    }
+    setStageSize((prev) => {
+      const next = { w: Math.round(w), h: Math.round(h) };
+      return prev.w === next.w && prev.h === next.h ? prev : next;
+    });
+  }
+  const relayoutRef = useRef(relayout);
+  relayoutRef.current = relayout;
+
+  function observeBox() {
+    if (roRef.current) roRef.current.disconnect();
+    if (!stageBoxEl.current || typeof ResizeObserver === 'undefined') return;
+    roRef.current = new ResizeObserver(() => relayoutRef.current());
+    roRef.current.observe(stageBoxEl.current);
+  }
+
+  const videoW = info?.video?.width;
+  const videoH = info?.video?.height;
+  useEffect(() => {
+    relayoutRef.current();
+    observeBox();
+    return () => {
+      if (roRef.current) roRef.current.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewURL, videoW, videoH]);
+
+  useEffect(() => {
+    const onResize = () => relayoutRef.current();
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (roRef.current) roRef.current.disconnect();
+    };
+  }, []);
+
+  useEffect(() => () => clearTimeout(tlTipTimer.current), []);
+
+  /* ---------- 时间段：每个水印各自独立 ---------- */
+
+  // 时间轴上的临时提示：写给"拖了但没反应"的情况，
+  // 否则用户只会以为这个功能坏了（撞到片头/片尾时本来就没有可拖的余地）。
+  function showTip(msg: string) {
+    setTlTip(msg);
+    clearTimeout(tlTipTimer.current);
+    tlTipTimer.current = setTimeout(() => {
+      setTlTip('');
+    }, 2800);
+  }
+
+  function onTimeUpdate() {
+    setCurrentTime(videoEl.current?.currentTime || 0);
+  }
+
+  function isVisible(it: any) {
+    return it.enabled && inRange(it, currentTime, duration);
+  }
+
   function summaryOf(it: any) {
     return timeSummary(it, duration);
   }
 
-  // Task 11 接管：调完时间段后自动把播放头挪到该水印可见的时刻。
-  // 这里还没有 videoEl，先做 no-op，只改起止数值。
-  function afterTimeEdit(_it: any) {
-    // Task 11 接管
+  function barStyle(it: any): CSSProperties {
+    const { start, end, duration: d } = spanOf(it, duration);
+    const s = clamp(start, 0, d);
+    const e = clamp(end, 0, d);
+    return { left: (s / d) * 100 + '%', width: Math.max(1, ((e - s) / d) * 100) + '%' };
+  }
+
+  function playheadStyle(): CSSProperties {
+    const d = duration || 1;
+    return { left: clamp(currentTime / d, 0, 1) * 100 + '%' };
+  }
+
+  function seekTo(t: number) {
+    const v = videoEl.current;
+    if (v) v.currentTime = clamp(t, 0, duration || t);
+    setCurrentTime(t);
+  }
+
+  // 时间轴上按住拖动 = 拖播放头（点一下也能直接跳过去）。
+  // 必须挂在 window 上监听移动，否则鼠标一旦滑出色条/红线就断了。
+  function startScrub(e: ReactPointerEvent | PointerEvent) {
+    e.preventDefault();
+    const tl = tlEl.current;
+    if (!tl) return;
+    const rect = tl.getBoundingClientRect();
+    const d = duration || 0;
+    if (!d || !rect.width) return;
+
+    const apply = (clientX: number) => {
+      const ratio = clamp((clientX - rect.left) / rect.width, 0, 1);
+      const t = ratio * d;
+      // 拖动过程会高频触发，差得不多就别反复 seek，免得视频一直重定位
+      if (Math.abs(t - currentTimeRef.current) < 0.02) return;
+      seekTo(t);
+    };
+
+    apply(e.clientX);
+    const move = (ev: PointerEvent) => apply(ev.clientX);
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  // 调完时间段后，如果画面正停在这个水印看不到的时刻，就自动跳过去，
+  // 省得用户还要手动拖进度条确认效果。已经在区间里则不动，避免打断播放。
+  function afterTimeEdit(it: any) {
+    // 用 id 查最新状态，避免调用方闭包里的 it 是过期快照
+    const fresh = itemsRef.current.find((i) => i.id === it.id) ?? it;
+    const t = videoEl.current?.currentTime ?? currentTimeRef.current;
+    const target = targetSeekFor(fresh, t, duration);
+    if (target !== null) seekTo(target);
+  }
+
+  // 色条内的文字：显示这段的时间范围，太窄时 CSS 会自然裁掉
+  function barLabel(it: any) {
+    if (!it.hasTime) return '全程';
+    const { start, end } = spanOf(it, duration);
+    return `${start.toFixed(1)} – ${end.toFixed(1)}`;
+  }
+
+  // 拖动色条两端的手柄 → 调整开始 / 消失时间
+  function resizeBar(it: any, side: 'start' | 'end', e: ReactPointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedId(it.id);
+
+    const tl = tlEl.current;
+    if (!tl) return;
+    const rect = tl.getBoundingClientRect();
+    const d = duration || 1;
+    // 以按下瞬间的区间为基准；否则每次 move 都基于上一帧结果累加，会越拖越快
+    const base = spanOf(it, d);
+    const wasLimited = !!it.hasTime;
+    const startX = e.clientX;
+    let activated = false;
+    let latest = { start: base.start, end: base.end };
+
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      // 位移太小一律当点击：不激活，也就不会改动数据（避免"点一下色条就变短"）
+      if (!activated) {
+        if (Math.abs(dx) < 3) return;
+        activated = true;
+        setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, hasTime: true } : x)));
+      }
+
+      const delta = (dx / rect.width) * d;
+      const next = applyResize(base, side, delta, d);
+      latest = next;
+      setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, start: next.start, end: next.end } : x)));
+    };
+
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!activated) return;
+
+      // 拖到头了就不动，但要说明原因 —— 否则看起来就是"拖不动"
+      if (latest.start === base.start && latest.end === base.end) {
+        // 没产生任何变化就把 hasTime 还原，免得平白留下一个"0–片尾"的限定
+        if (!wasLimited) setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, hasTime: false } : x)));
+        if (side === 'end') {
+          showTip(
+            base.end >= d - 0.001 ? '右端已是片尾，没法再往后拉；往左拖可以提前结束' : '区间已经缩到最短了'
+          );
+        } else {
+          showTip(base.start <= 0.001 ? '左端已是片头，没法再往前；往右拖可以推迟出现' : '区间已经缩到最短了');
+        }
+        return;
+      }
+      afterTimeEdit({ ...it, ...latest, hasTime: true });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  // 拖动色条中段 → 整体平移（只影响它自己）。
+  // 「全程」水印没有可平移的余地，所以给一句提示，免得用户以为拖不动。
+  function moveBar(it: any, e: ReactPointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedId(it.id);
+
+    if (!it.hasTime) {
+      showTip('这是「全程」水印：拖色条两端的手柄，可以限定它出现的时间段');
+      return;
+    }
+
+    const tl = tlEl.current;
+    if (!tl) return;
+    const rect = tl.getBoundingClientRect();
+    const d = duration || 1;
+    const base = spanOf(it, d);
+    const startX = e.clientX;
+    let activated = false;
+    let latest = { start: base.start, end: base.end };
+
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      if (!activated) {
+        if (Math.abs(dx) < 3) return;
+        activated = true;
+      }
+      const delta = (dx / rect.width) * d;
+      const next = applyMove(base, delta, d);
+      latest = next;
+      setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, start: next.start, end: next.end } : x)));
+    };
+
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!activated) return;
+
+      if (latest.start === base.start && latest.end === base.end) {
+        showTip('这一段已经贴到片头或片尾了，没法再往这个方向平移');
+        return;
+      }
+      afterTimeEdit({ ...it, ...latest });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   }
 
   function clearTime(it: any) {
     patchItem(it.id, { hasTime: false, start: 0, end: 0 });
+  }
+
+  /* ---------- 拖拽定位 ---------- */
+  function startDrag(item: any, e: ReactPointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedId(item.id);
+    const stage = stageEl.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const ox = item.x;
+    const oy = item.y;
+
+    const move = (ev: PointerEvent) => {
+      const nx = clamp(ox + (ev.clientX - sx) / rect.width, 0, 1);
+      const ny = clamp(oy + (ev.clientY - sy) / rect.height, 0, 1);
+      setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, x: nx, y: ny } : x)));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  function startResize(item: any, e: ReactPointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedId(item.id);
+
+    // 量出水印元素当前的实际渲染宽度，作为整个拖动过程的缩放基准。
+    // 文字水印的渲染宽度与字号并不成正比（三个字、字号 36px 时实际宽约 108px），
+    // 直接拿字号当宽度算，手柄会跑得比鼠标快好几倍。
+    const el = (e.currentTarget as HTMLElement)?.parentElement;
+    const startWidth = el?.getBoundingClientRect().width || 0;
+    const baseRatio = item.kind === 'image' ? item.wRatio : item.fontSizeRatio;
+    const sx = e.clientX;
+
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - sx;
+      if (item.kind === 'image') {
+        const v = scaleFromDrag(baseRatio, startWidth, dx, ...IMAGE_RATIO_RANGE);
+        setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, wRatio: v } : x)));
+      } else {
+        const v = scaleFromDrag(baseRatio, startWidth, dx, ...TEXT_RATIO_RANGE);
+        setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, fontSizeRatio: v } : x)));
+      }
+    };
+
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  function stageStyle(item: any): CSSProperties {
+    const base: CSSProperties = {
+      left: `${item.x * 100}%`,
+      top: `${item.y * 100}%`,
+      cursor: 'move',
+    };
+    if (item.kind === 'image') {
+      base.width = `${item.wRatio * 100}%`;
+      base.opacity = item.opacity;
+    } else {
+      // 字号用像素写死，等价于「字号 ÷ 画面高」，和导出时的换算完全一致
+      base.fontSize = `${Math.max(8, item.fontSizeRatio * stageSize.h)}px`;
+      base.color = item.color;
+      base.opacity = item.opacity;
+      base.lineHeight = '1.2';
+      if (item.borderW > 0) {
+        (base as any).WebkitTextStroke = `${item.borderW * 0.5}px ${item.borderColor}`;
+        base.textShadow = `0 0 ${item.borderW}px ${item.borderColor}`;
+      }
+      if (item.box) {
+        base.background = 'rgba(0,0,0,0.5)';
+        base.padding = '0.15em 0.4em';
+        base.borderRadius = '4px';
+      }
+    }
+    return base;
   }
 
   function addImage(wm: any) {
@@ -128,9 +470,7 @@ export default function WatermarkTab() {
   }
 
   function remove(id: string) {
-    const next = items.filter((i) => i.id !== id);
-    setItems(next);
-    if (selectedId === id) setSelectedId(next[0]?.id || '');
+    setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
   function duplicate(id: string) {
@@ -144,6 +484,7 @@ export default function WatermarkTab() {
     };
     setItems((prev) => {
       const idx = prev.findIndex((i) => i.id === id);
+      if (idx < 0) return prev;
       const next = [...prev];
       next.splice(idx + 1, 0, copy);
       return next;
@@ -251,10 +592,109 @@ export default function WatermarkTab() {
 
       {file && previewURL && (
         <div className="wm-layout">
-          {/* 预览区：画布拖拽 + 时间轴由 Task 11 接管 */}
-          <div>
-            <div className="card">预览画布（Task 11）</div>
-            <div className="card">时间轴（Task 11）</div>
+          {/* 预览区：水印是叠在视频上的网页元素，拖动零延迟；导出时按同一套比例换算成 ffmpeg 参数 */}
+          <div className="card stage-card">
+            <h2>
+              实时预览
+              <span className="hint">拖水印移动位置，拖右下角圆点改大小</span>
+            </h2>
+            <div ref={stageBoxEl} className="stage-box">
+              <div
+                ref={stageEl}
+                className="stage"
+                data-testid="wm-canvas"
+                style={{ width: stageSize.w + 'px', height: stageSize.h + 'px' }}
+              >
+                <video
+                  ref={videoEl}
+                  src={previewURL}
+                  controls
+                  preload="metadata"
+                  onTimeUpdate={onTimeUpdate}
+                  onSeeked={onTimeUpdate}
+                />
+                {items.map((it) => (
+                  <div
+                    key={it.id}
+                    className={'wm' + (it.id === selectedId ? ' sel' : '') + (it.kind === 'text' ? ' text' : '')}
+                    style={{ ...stageStyle(it), display: isVisible(it) ? undefined : 'none' }}
+                    onPointerDown={(e) => startDrag(it, e)}
+                  >
+                    {it.kind === 'image' ? (
+                      <img src={it.url} alt="水印" draggable={false} />
+                    ) : (
+                      <span>{it.text || '文字'}</span>
+                    )}
+                    <i className="resize" onPointerDown={(e) => startResize(it, e)}></i>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* 时间轴：每个水印一条色条，各自的时间段一眼可见、可直接拖动 */}
+            <div className="tl">
+              <div className="tl-head">
+                <span className={'hint' + (tlTip ? ' warn' : '')}>
+                  {tlTip || '时间轴 · 拖红点定位播放位置；拖色条两端调起止时间，拖中段平移'}
+                </span>
+                <span className="mono tl-clock">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
+              </div>
+
+              <div ref={tlEl} id="track" className="tl-track" onPointerDown={startScrub}>
+                {!items.length && <div className="tl-empty">还没有水印</div>}
+                {items.map((it) => (
+                  <div
+                    key={it.id}
+                    className={
+                      'tl-bar' +
+                      (!it.enabled ? ' off' : '') +
+                      (it.id === selectedId ? ' sel' : '') +
+                      (it.kind === 'text' ? ' text' : '') +
+                      (!it.hasTime ? ' full' : '')
+                    }
+                    data-testid={`tl-bar-${it.id}`}
+                    style={barStyle(it)}
+                    title={`${it.kind === 'image' ? '图片水印' : it.text || '文字水印'} · ${summaryOf(it)}`}
+                    onPointerDown={(e) => moveBar(it, e)}
+                  >
+                    <span
+                      className="tl-grip left"
+                      data-testid={`tl-handle-${it.id}-left`}
+                      title="拖动这里：调整开始时间"
+                      onPointerDown={(e) => resizeBar(it, 'start', e)}
+                    ></span>
+                    <span className="tl-label">{barLabel(it)}</span>
+                    <span
+                      className="tl-grip right"
+                      data-testid={`tl-handle-${it.id}-right`}
+                      title="拖动这里：调整消失时间"
+                      onPointerDown={(e) => resizeBar(it, 'end', e)}
+                    ></span>
+                  </div>
+                ))}
+                <div className="tl-playhead" data-testid="tl-playhead" style={playheadStyle()}>
+                  <span
+                    className="tl-knob"
+                    title="按住拖动：移动播放位置"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      startScrub(e);
+                    }}
+                  ></span>
+                </div>
+              </div>
+
+              <div className="tl-scale mono">
+                <span>0:00</span>
+                <span>{formatTime(duration / 2)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+            </div>
+
+            <div className="stage-foot">
+              <span className="hint">预览仅用于定位，最终效果以导出为准</span>
+            </div>
           </div>
 
           {/* 右侧：水印列表 + 选中项属性 */}
