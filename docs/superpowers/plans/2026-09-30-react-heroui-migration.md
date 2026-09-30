@@ -775,6 +775,10 @@ git commit -m "chore: CI renamed to React, e2e selectors aligned, exe size <X>MB
 ```
 （把 Step 4 的实际 MB 数填入 `<X>`。）
 
+- [ ] **Step 7: a11y 收尾（Task 4 评审遗留，非阻塞但本次做完）**
+
+给 `AppSlider` 加可选 `label` prop（替代硬编码 `aria-label="slider"`），给 `AppSwitch` / `AppNumber` / `AppColor` 的触发器加可选 `label`/`aria-label`（无障碍名称），并在各 Tab 调用处传入对应中文标签（如“画质 CRF”“启用”“宽度”）。`npm run build` 通过后与 Step 6 合并提交（commit message 追加 `, a11y labels`）。
+
 ---
 
 ## Self-Review
