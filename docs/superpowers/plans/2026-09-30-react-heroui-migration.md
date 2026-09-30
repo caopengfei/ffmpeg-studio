@@ -6,7 +6,7 @@
 
 **Architecture:** 复用 `wailsjs` 纯 JS 绑定（`api.ts` 只转 TS 不改签名）；`composables` → `hooks`、`ui` → HeroUI 封装、`components`/`tabs` 逐文件平移；水印纯函数原样搬运（保持 `.js`，测试只改 import 路径）；全程在 `migrate/react-heroui` 分支，每迁完一个 Tab 即 `npm run build` 验证。
 
-**Tech Stack:** React 19, HeroUI v3 (`heroui`), Tailwind CSS v4 (`tailwindcss` + `@tailwindcss/vite`), `@vitejs/plugin-react`, `framer-motion`, Vite 7, Node 22, Wails v2 (unchanged), Go backend (untouched).
+**Tech Stack:** React 19, HeroUI v3 (`@heroui/react` 3.x, npm 上无 `heroui` 包；v3 无 Provider 包裹、无 NumberInput/Progress 组件，对应为 NumberField/ProgressBar), Tailwind CSS v4 (`tailwindcss` + `@tailwindcss/vite`), `@vitejs/plugin-react@4` (Vite 7 兼容), `framer-motion`, Vite 7, Node 22, Wails v2 (unchanged), Go backend (untouched).
 
 ---
 
@@ -493,9 +493,9 @@ git commit -m "feat(frontend): port composables to React hooks"
 - `AppNumber`: `{ value: number; min?; max?; step?; disabled?: boolean; placeholder?: string; onChange: (v: number) => void }`（空输入回 0，失焦夹取，沿用 Vue 约定）
 - `AppCheck`: `{ checked: boolean; disabled?: boolean; onChange: (v: boolean) => void; children }`
 - `AppSwitch`: `{ checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }`
-- `AppColor`: `{ value: string; onChange: (hex: string) => void }`（hex `#rrggbb`，与 drawtext 兼容；原生 `<input type="color">` + HeroUI Popover/Button 包皮）
+- `AppColor`: `{ value: string; onChange: (hex: string) => void }`（hex `#rrggbb`，与 drawtext 兼容；原生 `<input type="color">` + HeroUI Popover/Button 包皮；若核对发现 v3 自带 ColorPicker 好用，允许改用，但必须在本 Task 报告中写明）
 
-底层分别用 HeroUI 的 `Select` / `Slider` / `NumberInput` / `Checkbox` / `Switch` / `Popover+Button` 实现。若某组件在 v3 改名或改 props，以 `node_modules/heroui` 自带类型为准并在文件头注释写明映射。
+底层分别用 HeroUI 的 `Select` / `Slider` / `NumberField`（v3 无 NumberInput） / `Checkbox` / `Switch` / `Popover+Button` 实现，全部 `from '@heroui/react'` 导入（v3 无 HeroUIProvider，不包裹）。若某组件在 v3 改名或改 props，以 `node_modules/@heroui/react` 自带类型为准并在文件头注释写明映射。
 
 - [ ] **Step 2: 构建验证**
 
@@ -529,7 +529,7 @@ git commit -m "feat(frontend): HeroUI-based ui primitives (select/slider/number/
 
 - [ ] **Step 3: CommandPreview.tsx** — props `{ steps: string[]; err: string }`；HeroUI Accordion 折叠（触发器文案“将执行的命令”+ N 步 badge + caret）；复制按钮（clipboard + “已复制” 1.5s）；err→banner err；空态“参数填完整后这里会显示要执行的命令”。
 
-- [ ] **Step 4: ProgressPanel.tsx** — props `{ running; progress; stage; logs: string[]; result; onCancel; onOpenFile; onOpenDir }`；HeroUI Progress（indeterminate 时条纹动画保留）；`pct` 夹 0~100；失败自动展开日志（useEffect 监听 result）；结果条 ok/canceled/err 三态文案照搬（含用时秒数）；日志 `<pre>` 最多由 hook 截断。
+- [ ] **Step 4: ProgressPanel.tsx** — props `{ running; progress; stage; logs: string[]; result; onCancel; onOpenFile; onOpenDir }`；HeroUI ProgressBar（indeterminate 时 omit value，条纹动画保留）；`pct` 夹 0~100；失败自动展开日志（useEffect 监听 result）；结果条 ok/canceled/err 三态文案照搬（含用时秒数）；日志 `<pre>` 最多由 hook 截断。
 
 - [ ] **Step 5: VideoScrubber.tsx** — props `{ src; duration; mode: 'range'|'point'; value: {start,end,time?}; onChange }`；`<video controls preload="metadata">` + HeroUI Slider（range 双值/point 单值，step 0.01，`min-steps-between-thumbs` 等价行为若 HeroUI 不支持则手写夹取：`end-start>=0.05`）；滑块动→视频 `currentTime` 跟随（判断哪个手柄动了的逻辑照搬）；`loadedmetadata` 同步 end；下方 AppNumber 起点/终点/时间点 + readout（`formatTime`）；选中时长/全片文案照搬。
 
@@ -554,24 +554,22 @@ git commit -m "feat(frontend): port shared components (picker/info/command/progr
 - Modify: `frontend/src/main.tsx` (Placeholder → App)
 - Modify: `frontend/src/index.css` (补全全部 token 与保留样式)
 
-- [ ] **Step 1: index.css 补全** — 把 `style.css` 的 `:root` token（--bg/#f5f6f8、--panel、--border/#e3e6ea、--border-strong、--text、--text-dim、--text-mute、--primary/#2563eb、--primary-hover、--primary-soft、--ok/warn/err 及其 soft、--radius/--radius-sm）全部搬入 `@theme`（`--color-*`）；侧栏/导航/card/field/row/banner/mode/mono 等布局类原样保留为普通 CSS；水印斜纹/色条/手柄样式原样保留（约 100 行，Task 12 用到）；headless 皮肤（u-sel/u-slider/u-num/u-color/u-check/u-switch/u-tg/u-seg/u-coll）整段删除（HeroUI 接管）。
+- [ ] **Step 1: index.css 补全** — 首行加 HeroUI 样式（`@import "@heroui/react/styles";`，若该子路径不存在则按包内文档调整并在报告写明）；把 `style.css` 的 `:root` token（--bg/#f5f6f8、--panel、--border/#e3e6ea、--border-strong、--text、--text-dim、--text-mute、--primary/#2563eb、--primary-hover、--primary-soft、--ok/warn/err 及其 soft、--radius/--radius-sm）全部搬入 `@theme`（`--color-*`）；侧栏/导航/card/field/row/banner/mode/mono 等布局类原样保留为普通 CSS；水印斜纹/色条/手柄样式原样保留（约 100 行，Task 12 用到）；headless 皮肤（u-sel/u-slider/u-num/u-color/u-check/u-switch/u-tg/u-seg/u-coll）整段删除（HeroUI 接管）。
 
-- [ ] **Step 2: App.tsx** — state 照搬 App.vue：`current='watermark'`、ffInfo/checking/setting/redetecting/copied、install 六件套（installing/installPct/installMsg/installReceived/installTotal/installSpeed/installError/showManual/showTried）；`refresh/browseFFmpeg/redetect/openDownload/openProgramDir/copyProgramDir/startInstall/cancelInstall` 逐函数平移；`ffmpeg:install` 事件 useEffect 订阅；tabs 数组（key/label/desc/icon path，顺序 watermark→transcode→compress→trim→resize→snapshot→gif）不变；侧栏品牌块 + 导航（选中竖条样式保留）+ env-badge + 重新检测；ffmpeg 缺失引导卡整块平移（安装进度条用 HeroUI Progress，手动三步折叠用 Accordion）；页面切换用 framer-motion（initial opacity 0 y 12 / animate 1 0 / exit 0 -8 / 0.16s easeOut，照搬）。
+- [ ] **Step 2: App.tsx** — state 照搬 App.vue：`current='watermark'`、ffInfo/checking/setting/redetecting/copied、install 六件套（installing/installPct/installMsg/installReceived/installTotal/installSpeed/installError/showManual/showTried）；`refresh/browseFFmpeg/redetect/openDownload/openProgramDir/copyProgramDir/startInstall/cancelInstall` 逐函数平移；`ffmpeg:install` 事件 useEffect 订阅；tabs 数组（key/label/desc/icon path，顺序 watermark→transcode→compress→trim→resize→snapshot→gif）不变；侧栏品牌块 + 导航（选中竖条样式保留）+ env-badge + 重新检测；ffmpeg 缺失引导卡整块平移（安装进度条用 HeroUI ProgressBar，手动三步折叠用 Accordion）；页面切换用 framer-motion（initial opacity 0 y 12 / animate 1 0 / exit 0 -8 / 0.16s easeOut，照搬）。
 
 - [ ] **Step 3: main.tsx 换真 App 并构建**
 
 ```tsx
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { HeroUIProvider } from 'heroui'
 import App from './App'
 import './index.css'
 
+// 注：HeroUI v3 无需 Provider 包裹（零样板），直接渲染 App。
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <HeroUIProvider>
-      <App />
-    </HeroUIProvider>
+    <App />
   </React.StrictMode>,
 )
 ```
