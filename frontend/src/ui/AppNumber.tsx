@@ -11,6 +11,8 @@ interface AppNumberProps {
   step?: number;
   disabled?: boolean;
   placeholder?: string;
+  /** 无障碍名称 */
+  label?: string;
   onChange: (v: number) => void;
 }
 
@@ -23,7 +25,7 @@ function clamp(v: number, min?: number, max?: number): number {
   return r;
 }
 
-export default function AppNumber({ value, min, max, step = 1, disabled = false, placeholder = '', onChange }: AppNumberProps) {
+export default function AppNumber({ value, min, max, step = 1, disabled = false, placeholder = '', label, onChange }: AppNumberProps) {
   const safe = typeof value === 'number' && !Number.isNaN(value) ? value : 0;
   return (
     <NumberField
@@ -33,6 +35,7 @@ export default function AppNumber({ value, min, max, step = 1, disabled = false,
       step={step}
       isDisabled={disabled}
       formatOptions={NO_GROUPING}
+      aria-label={label}
       onChange={(v) => onChange(Number.isNaN(v) ? 0 : v)}
     >
       <NumberField.Group>

@@ -95,7 +95,7 @@ export default function TranscodeTab() {
     };
   }
 
-  const { cmd } = useCommandPreview(buildSpec, [file, outPath, container, vcodec, acodec, crf, preset]);
+  const { cmd } = useCommandPreview(buildSpec, [file, outPath, container, vcodec, acodec, crf, preset, info]);
 
   const { running, progress, stage, logs, result, start, cancel } = useTask();
 
@@ -164,7 +164,7 @@ export default function TranscodeTab() {
             <div className="grid2" style={{ marginTop: 12 }}>
               <div className="field">
                 <label>画质 CRF：{crf}</label>
-                <AppSlider value={crf} min={18} max={32} step={1} onChange={setCrf} />
+                <AppSlider value={crf} min={18} max={32} step={1} label="画质 CRF" onChange={setCrf} />
                 <span className="tip">数值越小画质越好、文件越大。18 接近无损，23 是默认，28 以上明显变小</span>
               </div>
               <div className="field">

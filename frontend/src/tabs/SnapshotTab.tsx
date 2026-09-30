@@ -79,7 +79,7 @@ export default function SnapshotTab() {
     };
   }
 
-  const { cmd } = useCommandPreview(buildSpec, [file, outPath, point, format, quality, batch, batchEvery, outDir, asCover, coverImage]);
+  const { cmd } = useCommandPreview(buildSpec, [file, outPath, point, format, quality, batch, batchEvery, outDir, asCover, coverImage, info]);
   const { running, progress, stage, logs, result, start, cancel } = useTask();
 
   async function run() {
@@ -166,7 +166,7 @@ export default function SnapshotTab() {
             {format !== 'png' && (
               <div className="field">
                 <label>{qualityLabel}</label>
-                <AppNumber value={quality} min={1} max={format === 'jpg' ? 31 : 100} step={1} onChange={setQuality} />
+                <AppNumber value={quality} min={1} max={format === 'jpg' ? 31 : 100} step={1} label={qualityLabel} onChange={setQuality} />
               </div>
             )}
           </div>
@@ -181,7 +181,7 @@ export default function SnapshotTab() {
             <div className="grid2" style={{ marginTop: 10 }}>
               <div className="field">
                 <label>间隔（秒）</label>
-                <AppNumber value={batchEvery} min={0.1} step={0.5} onChange={setBatchEvery} />
+                <AppNumber value={batchEvery} min={0.1} step={0.5} label="间隔" onChange={setBatchEvery} />
               </div>
               <div className="field">
                 <label>输出目录</label>

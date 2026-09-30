@@ -14,14 +14,16 @@ interface FilePickerProps {
 export default function FilePicker({ value, accept = 'media', label = '', onChange }: FilePickerProps) {
   const [hovering, setHovering] = useState(false);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-  const acceptRef = useRef(accept);
-  acceptRef.current = accept;
+  // 回调引用在 effect 里赋值：渲染期写 ref 在并发模式下不可靠；
+  // accept 直接用 prop（choose 每次渲染都新建闭包，不会过期），不再另存 ref
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
 
   async function choose() {
     let f: MediaFile | null = null;
-    if (acceptRef.current === 'image') f = await api.pickImageFile();
-    else if (acceptRef.current === 'font') f = await api.pickFontFile();
+    if (accept === 'image') f = await api.pickImageFile();
+    else if (accept === 'font') f = await api.pickFontFile();
     else f = await api.pickMediaFile();
     if (f) onChangeRef.current(f);
   }
@@ -30,12 +32,12 @@ export default function FilePicker({ value, accept = 'media', label = '', onChan
   useEffect(() => {
     const off = (events.OnFileDrop as unknown as (
       cb: (x: number, y: number, paths: string[]) => void,
-    ) => (() => void) | void)((_x, _y, paths) => {
+    ) => (() => void) | void)(async (_x, _y, paths) => {
       setHovering(false);
       if (!paths || !paths.length) return;
-      // 与 Vue 版保持 1:1：registerFile 返回 Promise，这里直接透传（不 await）
-      const f = api.registerFile(paths[0]) as unknown as MediaFile;
-      onChangeRef.current(f);
+      // 先注册成后端可访问的 URL，再 onChange；不 await 会把 Promise 透传成 value
+      const f = await api.registerFile(paths[0]);
+      if (f) onChangeRef.current(f);
     });
     return () => {
       if (typeof off === 'function') off();

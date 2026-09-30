@@ -78,7 +78,7 @@ export default function GifTab() {
     };
   }
 
-  const { cmd } = useCommandPreview(buildSpec, [file, outPath, range, fps, width, twoPass, loop]);
+  const { cmd } = useCommandPreview(buildSpec, [file, outPath, range, fps, width, twoPass, loop, info]);
   const { running, progress, stage, logs, result, start, cancel } = useTask();
 
   async function run() {
@@ -158,12 +158,12 @@ export default function GifTab() {
           <div className="grid3">
             <div className="field">
               <label>帧率：{fps} fps</label>
-              <AppSlider value={fps} min={5} max={30} step={1} onChange={setFps} />
+              <AppSlider value={fps} min={5} max={30} step={1} label="帧率" onChange={setFps} />
               <span className="tip">越高越流畅，体积也越大</span>
             </div>
             <div className="field">
               <label>宽度（像素）</label>
-              <AppNumber value={width} min={60} max={1280} step={10} onChange={setWidth} />
+              <AppNumber value={width} min={60} max={1280} step={10} label="宽度" onChange={setWidth} />
               <span className="tip">高度按画面比例自动</span>
             </div>
             <div className="field">

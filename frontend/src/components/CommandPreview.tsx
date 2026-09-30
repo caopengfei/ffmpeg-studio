@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Accordion, Button } from '@heroui/react';
 import './CommandPreview.css';
 
@@ -9,13 +9,23 @@ interface CommandPreviewProps {
 
 export default function CommandPreview({ steps, err }: CommandPreviewProps) {
   const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 卸载时清掉"已复制"回弹定时器，避免在已卸载组件上 setState
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
 
   async function copy() {
     const text = steps.join('\n');
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1500);
     } catch {
       /* 剪贴板不可用时忽略 */
     }
@@ -34,7 +44,7 @@ export default function CommandPreview({ steps, err }: CommandPreviewProps) {
               {steps.length > 1 && <span className="badge">{steps.length} 步</span>}
             </Accordion.Trigger>
           </Accordion.Heading>
-          <Accordion.Panel className="u-coll-content">
+          <Accordion.Panel>
             <div className="body">
               {err ? (
                 <div className="banner err">{err}</div>

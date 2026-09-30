@@ -104,7 +104,7 @@ export default function ResizeTab() {
     };
   }
 
-  const { cmd } = useCommandPreview(buildSpec, [file, outPath, width, height, keepAspect, flags]);
+  const { cmd } = useCommandPreview(buildSpec, [file, outPath, width, height, keepAspect, flags, info]);
   const { running, progress, stage, logs, result, start, cancel } = useTask();
 
   async function run() {
@@ -125,7 +125,7 @@ export default function ResizeTab() {
   }
 
   // 源本身小于 720p 时，默认按源尺寸，避免无意义的放大。
-  // path-keyed：只在新文件的 info 首次到达时跑一次，不跟用户的 preset 选择打架。
+  // 文件指纹（path + duration + size）守卫：只在新文件的 info 首次到达时跑一次，不跟用户的 preset 选择打架。
   const initKey = useRef('');
   useEffect(() => {
     if (!file || !info) return;
@@ -183,11 +183,11 @@ export default function ResizeTab() {
           <div className="grid3" style={{ marginTop: 14 }}>
             <div className="field">
               <label>宽度（像素）</label>
-              <AppNumber value={width} min={2} step={2} onChange={onWidthInput} />
+              <AppNumber value={width} min={2} step={2} label="宽度" onChange={onWidthInput} />
             </div>
             <div className="field">
               <label>高度（像素）{keepAspect ? '（自动）' : ''}</label>
-              <AppNumber value={height} min={2} step={2} disabled={keepAspect} onChange={onHeightInput} />
+              <AppNumber value={height} min={2} step={2} disabled={keepAspect} label="高度" onChange={onHeightInput} />
             </div>
             <div className="field">
               <label>缩放算法</label>

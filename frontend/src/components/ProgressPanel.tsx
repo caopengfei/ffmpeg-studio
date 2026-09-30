@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Accordion, Button, ProgressBar } from '@heroui/react';
 import { formatTime, formatSize } from '../api';
 import './ProgressPanel.css';
@@ -16,15 +16,23 @@ interface ProgressPanelProps {
 
 export default function ProgressPanel({
   running,
-  progress,
-  stage,
-  logs,
-  result,
+  // progress 正常由 useTask 保证非空；给默认值防历史调用方透传 undefined 时白屏
+  progress = { percent: 0 },
+  stage = null,
+  logs = [],
+  result = null,
   onCancel,
   onOpenFile,
   onOpenDir,
 }: ProgressPanelProps) {
   const [showLogs, setShowLogs] = useState(false);
+  const prevRunning = useRef(running);
+
+  // 新一轮任务开始（false→true）时收起日志，避免上一轮的展开状态带过来
+  useEffect(() => {
+    if (running && !prevRunning.current) setShowLogs(false);
+    prevRunning.current = running;
+  }, [running]);
 
   // 失败时自动展开日志，省得用户再点一下
   useEffect(() => {
@@ -100,7 +108,9 @@ export default function ProgressPanel({
           {result.ok ? (
             <>
               输出：{result.outputPath}
-              <span className="dim">（用时 {(result.elapsedMs / 1000).toFixed(1)} 秒）</span>
+              {Number.isFinite(result.elapsedMs) && (
+                <span className="dim">（用时 {(result.elapsedMs / 1000).toFixed(1)} 秒）</span>
+              )}
             </>
           ) : result.canceled ? (
             '任务已取消，未生成完整文件。'
@@ -137,7 +147,7 @@ export default function ProgressPanel({
                 {showLogs ? '收起日志' : `日志${logs.length ? `（${logs.length}）` : ''}`}
               </Accordion.Trigger>
             </Accordion.Heading>
-            <Accordion.Panel className="u-coll-content">
+            <Accordion.Panel>
               <pre className="logs scrollbox">{logs.join('\n') || '暂无日志'}</pre>
             </Accordion.Panel>
           </Accordion.Item>

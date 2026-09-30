@@ -7,10 +7,12 @@ interface AppSliderProps {
   max: number;
   step: number;
   disabled?: boolean;
+  /** 无障碍名称；不传则沿用默认 "slider" */
+  label?: string;
   onChange: (v: number) => void;
 }
 
-export default function AppSlider({ value, min, max, step, disabled = false, onChange }: AppSliderProps) {
+export default function AppSlider({ value, min, max, step, disabled = false, label, onChange }: AppSliderProps) {
   return (
     <Slider
       value={value}
@@ -18,7 +20,7 @@ export default function AppSlider({ value, min, max, step, disabled = false, onC
       maxValue={max}
       step={step}
       isDisabled={disabled}
-      aria-label="slider"
+      aria-label={label ?? 'slider'}
       onChange={(v) => onChange(typeof v === 'number' ? v : (v[0] ?? value))}
     >
       <Slider.Track>

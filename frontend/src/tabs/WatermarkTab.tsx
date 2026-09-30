@@ -192,9 +192,11 @@ export default function WatermarkTab() {
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   }
 
   // 调完时间段后，如果画面正停在这个水印看不到的时刻，就自动跳过去，
@@ -249,6 +251,7 @@ export default function WatermarkTab() {
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
       if (!activated) return;
 
       // 拖到头了就不动，但要说明原因 —— 否则看起来就是"拖不动"
@@ -268,6 +271,7 @@ export default function WatermarkTab() {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   }
 
   // 拖动色条中段 → 整体平移（只影响它自己）。
@@ -306,6 +310,7 @@ export default function WatermarkTab() {
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
       if (!activated) return;
 
       if (latest.start === base.start && latest.end === base.end) {
@@ -316,6 +321,7 @@ export default function WatermarkTab() {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   }
 
   function clearTime(it: any) {
@@ -343,9 +349,11 @@ export default function WatermarkTab() {
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   }
 
   function startResize(item: any, e: ReactPointerEvent) {
@@ -375,9 +383,11 @@ export default function WatermarkTab() {
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   }
 
   function stageStyle(item: any): CSSProperties {
@@ -542,7 +552,7 @@ export default function WatermarkTab() {
     };
   }
 
-  const { cmd } = useCommandPreview(buildSpec, [file, outPath, items, targetMode]);
+  const { cmd } = useCommandPreview(buildSpec, [file, outPath, items, targetMode, info]);
   const { running, progress, stage, logs, result, start, cancel } = useTask();
 
   async function run() {
@@ -724,7 +734,7 @@ export default function WatermarkTab() {
                         onClick={() => setSelectedId(it.id)}
                       >
                         <span onClick={(e) => e.stopPropagation()}>
-                          <AppSwitch checked={!!it.enabled} onChange={(v) => patchItem(it.id, { enabled: v })} />
+                          <AppSwitch checked={!!it.enabled} label="启用水印" onChange={(v) => patchItem(it.id, { enabled: v })} />
                         </span>
                         <span className="li-body">
                           <span className="li-name">{it.kind === 'image' ? '图片水印' : it.text || '文字水印'}</span>
@@ -799,17 +809,17 @@ export default function WatermarkTab() {
                     <div className="grid2" style={{ marginTop: 10 }}>
                       <div className="field">
                         <label>文字颜色</label>
-                        <AppColor value={selected.color || '#ffffff'} onChange={(v) => patchItem(selected.id, { color: v })} />
+                        <AppColor value={selected.color || '#ffffff'} label="文字颜色" onChange={(v) => patchItem(selected.id, { color: v })} />
                       </div>
                       <div className="field">
                         <label>描边宽度</label>
-                        <AppNumber value={selected.borderW} min={0} max={10} step={1} onChange={(v) => patchItem(selected.id, { borderW: v })} />
+                        <AppNumber value={selected.borderW} min={0} max={10} step={1} label="描边宽度" onChange={(v) => patchItem(selected.id, { borderW: v })} />
                       </div>
                     </div>
                     <div className="grid2" style={{ marginTop: 10 }}>
                       <div className="field">
                         <label>描边颜色</label>
-                        <AppColor value={selected.borderColor || '#000000'} onChange={(v) => patchItem(selected.id, { borderColor: v })} />
+                        <AppColor value={selected.borderColor || '#000000'} label="描边颜色" onChange={(v) => patchItem(selected.id, { borderColor: v })} />
                       </div>
                       <div className="field" style={{ justifyContent: 'flex-end', paddingBottom: 4 }}>
                         <AppCheck checked={!!selected.box} onChange={(v) => patchItem(selected.id, { box: v })}>
@@ -829,6 +839,7 @@ export default function WatermarkTab() {
                     min={0.05}
                     max={1}
                     step={0.01}
+                    label="不透明度"
                     onChange={(v) => patchItem(selected.id, { opacity: v })}
                   />
                 </div>
@@ -843,6 +854,7 @@ export default function WatermarkTab() {
                           value={selected.start}
                           min={0}
                           step={0.1}
+                          label="起点"
                           onChange={(v) => {
                             patchItem(selected.id, { start: v });
                             afterTimeEdit(selected);
@@ -855,6 +867,7 @@ export default function WatermarkTab() {
                           value={selected.end}
                           min={0}
                           step={0.1}
+                          label="终点"
                           onChange={(v) => {
                             patchItem(selected.id, { end: v });
                             afterTimeEdit(selected);

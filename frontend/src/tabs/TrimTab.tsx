@@ -19,8 +19,8 @@ export default function TrimTab() {
   const [range, setRange] = useState({ start: 0, end: 0 });
 
   // load 是异步的：await load(f) 之后读 info 拿到的是闭包里的旧值（React state
-  // 不会同步更新，Vue ref 会）。所以用 path-keyed useEffect，等 info 到位后
-  // 给新文件初始化一次 range，不跟用户后续的手动调整打架。
+  // 不会同步更新，Vue ref 会）。所以用文件指纹（path + duration + size）守卫的
+  // useEffect，等 info 到位后给新文件初始化一次 range，不跟用户后续的手动调整打架。
   const initKey = useRef('');
   useEffect(() => {
     if (!file || !info) return;
@@ -44,7 +44,7 @@ export default function TrimTab() {
     };
   }
 
-  const { cmd } = useCommandPreview(buildSpec, [file, outPath, accurate, range]);
+  const { cmd } = useCommandPreview(buildSpec, [file, outPath, accurate, range, info]);
   const { running, progress, stage, logs, result, start, cancel } = useTask();
 
   async function run() {

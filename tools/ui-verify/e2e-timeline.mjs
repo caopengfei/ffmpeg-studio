@@ -147,8 +147,8 @@ async function run(previewUrl, label) {
   await page.locator('.nav-item', { hasText: '加水印' }).click()
   await page.waitForTimeout(200)
 
-  // 选视频（点 FilePicker 的「浏览…」）
-  await page.locator('.card button.primary').first().click()
+  // 选视频（点 FilePicker 的「浏览…」；React 版用 HeroUI Button，无 .primary 类）
+  await page.getByRole('button', { name: '浏览…' }).first().click()
   await page.waitForTimeout(600)
 
   out.beforeAddWatermark = await probeTL(page)

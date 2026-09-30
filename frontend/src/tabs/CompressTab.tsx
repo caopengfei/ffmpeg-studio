@@ -81,7 +81,7 @@ export default function CompressTab() {
     };
   }
 
-  const { cmd } = useCommandPreview(buildSpec, [file, outPath, mode, crf, preset, copyAudio, targetMB, audioKbps]);
+  const { cmd } = useCommandPreview(buildSpec, [file, outPath, mode, crf, preset, copyAudio, targetMB, audioKbps, info]);
   const { running, progress, stage, logs, result, start, cancel } = useTask();
 
   async function run() {
@@ -149,7 +149,7 @@ export default function CompressTab() {
               <div className="grid2" style={{ marginTop: 14 }}>
                 <div className="field">
                   <label>画质 CRF：{crf}</label>
-                  <AppSlider value={crf} min={18} max={32} step={1} onChange={setCrf} />
+                  <AppSlider value={crf} min={18} max={32} step={1} label="画质 CRF" onChange={setCrf} />
                   <span className="tip">越小越清晰。23 默认，28 明显变小，32 以上能看出损伤</span>
                 </div>
                 <div className="field">
@@ -168,7 +168,7 @@ export default function CompressTab() {
               <div className="grid3" style={{ marginTop: 14 }}>
                 <div className="field">
                   <label>目标体积（MB）</label>
-                  <AppNumber value={targetMB} min={0.1} step={0.1} onChange={setTargetMB} />
+                  <AppNumber value={targetMB} min={0.1} step={0.1} label="目标体积" onChange={setTargetMB} />
                   {info && <span className="tip">源文件 {formatSize(info.size)}</span>}
                 </div>
                 <div className="field">

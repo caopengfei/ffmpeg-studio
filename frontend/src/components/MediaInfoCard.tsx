@@ -10,8 +10,9 @@ interface MediaInfoCardProps {
 function videoLine(info: any): string {
   const v = info?.video;
   if (!v) return '—';
-  const parts = [`${v.width}×${v.height}`];
-  parts.push((v.codec as string).toUpperCase());
+  const parts = [`${v.width ?? '?'}×${v.height ?? '?'}`];
+  // 探测失败/纯音频文件时 codec 可能缺失，别直接 toUpperCase 炸掉
+  parts.push(v.codec ? String(v.codec).toUpperCase() : '未知编码');
   if (v.fps > 0) parts.push(`${Number(v.fps).toFixed(2)} fps`);
   if (v.bitRate > 0) parts.push(`${Math.round(v.bitRate / 1000)} kbps`);
   return parts.join(' · ');
@@ -20,7 +21,7 @@ function videoLine(info: any): string {
 function audioLine(info: any): string {
   const a = info?.audio;
   if (!a) return '无音频';
-  const parts = [(a.codec as string).toUpperCase()];
+  const parts = [a.codec ? String(a.codec).toUpperCase() : '未知编码'];
   if (a.sampleRate) parts.push(`${a.sampleRate} Hz`);
   if (a.channels) parts.push(a.channels === 1 ? '单声道' : a.channels === 2 ? '立体声' : `${a.channels} 声道`);
   if (a.bitRate > 0) parts.push(`${Math.round(a.bitRate / 1000)} kbps`);

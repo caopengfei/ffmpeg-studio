@@ -35,7 +35,7 @@ jobs:
         run: go test ./... -count=1
 
   frontend:
-    name: 前端（Vue）
+    name: 前端（React）
     runs-on: ubuntu-latest
     defaults:
       run:

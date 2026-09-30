@@ -42,6 +42,8 @@ export default function VideoScrubber({ src, duration, mode, value, onChange }: 
   // 滑块拖动：找出是哪个手柄动了，视频实时跟到那个位置
   function onUpdate(arr: number[]) {
     if (!arr.length || arr.some((x) => typeof x !== 'number')) return;
+    // 区间模式要双手柄的值；Slider 偶发只吐一个值时直接忽略，别把 end 写成 undefined
+    if (mode === 'range' && arr.length < 2) return;
 
     if (mode === 'range') {
       let s = arr[0];
@@ -60,9 +62,10 @@ export default function VideoScrubber({ src, duration, mode, value, onChange }: 
   }
 
   function onMeta() {
-    // 时长以探测结果为准，但视频元数据更准时同步一次
+    // 时长以探测结果为准，但视频元数据更准时同步一次；
+    // duration 读不到（NaN）时不同步，避免把 end 写坏
     const v = videoRef.current;
-    if (!v) return;
+    if (!v || !Number.isFinite(v.duration)) return;
     if (mode === 'range' && (!value.end || value.end > v.duration)) {
       onChange({ ...value, end: v.duration });
     }
@@ -117,11 +120,11 @@ export default function VideoScrubber({ src, duration, mode, value, onChange }: 
           <>
             <div className="tfield">
               <label>起点（秒）</label>
-              <AppNumber value={startVal} min={0} max={maxVal} step={0.01} onChange={setStart} />
+              <AppNumber value={startVal} min={0} max={maxVal} step={0.01} label="起点" onChange={setStart} />
             </div>
             <div className="tfield">
               <label>终点（秒）</label>
-              <AppNumber value={endVal} min={0} max={maxVal} step={0.01} onChange={setEnd} />
+              <AppNumber value={endVal} min={0} max={maxVal} step={0.01} label="终点" onChange={setEnd} />
             </div>
             <div className="readout">
               选中 <b>{formatTime(Math.max(0, endVal - startVal))}</b>
@@ -132,7 +135,7 @@ export default function VideoScrubber({ src, duration, mode, value, onChange }: 
           <>
             <div className="tfield">
               <label>时间点（秒）</label>
-              <AppNumber value={endVal} min={0} max={maxVal} step={0.01} onChange={setPoint} />
+              <AppNumber value={endVal} min={0} max={maxVal} step={0.01} label="时间点" onChange={setPoint} />
             </div>
             <div className="readout">
               <b>{formatTime(endVal)}</b>
