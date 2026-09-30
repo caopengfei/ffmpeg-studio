@@ -775,9 +775,14 @@ git commit -m "chore: CI renamed to React, e2e selectors aligned, exe size <X>MB
 ```
 （把 Step 4 的实际 MB 数填入 `<X>`。）
 
-- [ ] **Step 7: a11y 收尾（Task 4 评审遗留，非阻塞但本次做完）**
+- [ ] **Step 7: 收尾硬化（评审遗留，非阻塞但本次做完）**
 
-给 `AppSlider` 加可选 `label` prop（替代硬编码 `aria-label="slider"`），给 `AppSwitch` / `AppNumber` / `AppColor` 的触发器加可选 `label`/`aria-label`（无障碍名称），并在各 Tab 调用处传入对应中文标签（如“画质 CRF”“启用”“宽度”）。`npm run build` 通过后与 Step 6 合并提交（commit message 追加 `, a11y labels`）。
+  1. **a11y 标签**：给 `AppSlider` 加可选 `label` prop（替代硬编码 `aria-label="slider"`），给 `AppSwitch` / `AppNumber` / `AppColor` 触发器加可选 `label`/`aria-label`，并在各 Tab 调用处传入对应中文标签。
+  2. **CSS 命名空间检查**：`MediaInfoCard.css` 的 `.cell/.tag/.stream`、各组件 `.panel` 等裸通用类名是全局的——全量 grep 确认无碰撞；有碰撞则加前缀（`mi-`/`pp-`），无碰撞则不动。
+  3. **registerFile Promise 决策**（FilePicker 传 Promise 当 MediaFile 用，Vue 版同病）：改为 `await api.registerFile()` 后再 `onChange`，修掉这个继承来的小 bug。
+  4. **Task 5 Minor #3–#9 顺手修**：copy 超时清理、onMeta isFinite、onUpdate 数组长度、useEffect 赋值 ref、ProgressPanel 默认值、showLogs 新任务重置、codec 缺失 guard。
+
+  `npm run build` + `npm test` 通过后与 Step 6 合并提交（commit message 追加 `, hardening`）。
 
 ---
 
