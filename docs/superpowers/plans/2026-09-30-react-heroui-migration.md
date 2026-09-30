@@ -652,6 +652,22 @@ git commit -m "feat(frontend): port TrimTab and ResizeTab"
 - Create: `frontend/src/tabs/SnapshotTab.tsx`
 - Create: `frontend/src/tabs/GifTab.tsx`
 
+- [ ] **Step 0: 统一 per-file 初始化守卫（Task 8 评审遗留，先做）**
+
+Trim/Resize 用的 `lastInitFor` useState 守卫有两个小毛病：多一次空渲染；快速切文件时旧 probe 晚到会 sticky（守卫已消费、新 probe 被挡）。
+改为 `useRef` + key 含 info 指纹，四个预览 Tab 统一用同一模式：
+```tsx
+const initKey = useRef('')
+useEffect(() => {
+  if (!file || !info) return
+  const key = `${file.path}::${info.duration ?? ''}::${info.size ?? ''}`
+  if (initKey.current === key) return
+  initKey.current = key
+  // ...各 Tab 的初始化（range / point / dims）
+}, [file, info])
+```
+把 `TrimTab.tsx` / `ResizeTab.tsx` 的守卫按此改写（行为不变，`npm run build` 通过，单独 commit `refactor(frontend): unify per-file init guard`)，Snapshot/Gif 直接用新模式写。
+
 - [ ] **Step 1: SnapshotTab.tsx** — `useMediaSource('snapshot',{withPreview:true})`；`point={time:0} format='png' quality=2 batch=false batchEvery=5 outDir='' asCover=false coverImage=null`；onFile 后 `point={min(1, duration*0.1)}`；`qualityLabel`（jpg 显示 1 最好/31 最差，否则 1–100）；`buildSpec` 三分支（batch→`{format,quality,batchEvery,outDir}` output ''；asCover→`{asCover:true,coverImage:format}`；单帧→`{time,format,quality}`，字段名不变）；VideoScrubber mode=point（batch 时隐藏预览卡）；批量/封面 AppCheck + divider；`canRun`；按钮文案三态（`抽取 ${formatTime(point.time)} 处的一帧` / 开始批量抽帧 / 写入封面）。
 
 - [ ] **Step 2: GifTab.tsx** — `range={0,0} fps=12 width=480 twoPass=true loop='-1'`（字符串，Number() 回转，照搬）；LOOP_OPTIONS 4 项照搬；onFile 后 `range={0, min(dur,6)}`；`segLen/frames/estimate`（`width²*0.5625*0.14*frames` → formatSize，照搬）；`tooLong`>15s 警告 banner 照搬；`buildSpec` kind gif（`{start,end,fps,width,twoPass,loop:Number}`）；fps Slider 5~30 + width AppNumber 60~1280 step 10 + loop AppSelect + twoPass AppCheck（调色板说明照搬）；stats 行（片段秒/帧数/预估体积）；结果 `watch(result)`→`mediaURL`→内嵌 `<img gif-out>`（useEffect 平移）。
