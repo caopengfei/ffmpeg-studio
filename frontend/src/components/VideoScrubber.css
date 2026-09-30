@@ -73,23 +73,12 @@
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
 }
 
+/* 输入框已移除，这一行只剩只读读数 */
 .scrubber .times {
   display: flex;
-  align-items: flex-end;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.scrubber .tfield {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 130px;
-}
-
-.scrubber .tfield label {
-  font-size: 11px;
-  color: var(--text-mute);
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
 }
 
 .scrubber .readout {
@@ -103,5 +92,14 @@
 }
 
 .scrubber .readout .dim {
+  color: var(--text-mute);
+}
+
+.scrubber .readout .mark {
+  color: var(--text);
+  font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+}
+
+.scrubber .readout .sep {
   color: var(--text-mute);
 }

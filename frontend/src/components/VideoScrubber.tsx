@@ -1,6 +1,5 @@
 import { useRef } from 'react';
 import { Slider } from '@heroui/react';
-import AppNumber from '../ui/AppNumber';
 import { formatTime } from '../api';
 import './VideoScrubber.css';
 
@@ -19,15 +18,13 @@ interface VideoScrubberProps {
   mode: 'range' | 'point';
   value: ScrubValue;
   onChange: (v: ScrubValue) => void;
-  // range 模式是否显示起点/终点数字框（GIF 页隐藏，只留拖杆）
-  showTimeFields?: boolean;
 }
 
 // HeroUI Slider 没有 min-steps-between-thumbs，按 Vue 的 5 步（step=0.01）
 // 在 onChange 里手动保证双手柄最小间隔 0.05
 const MIN_GAP = 0.05;
 
-export default function VideoScrubber({ src, duration, mode, value, onChange, showTimeFields = true }: VideoScrubberProps) {
+export default function VideoScrubber({ src, duration, mode, value, onChange }: VideoScrubberProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const startVal = mode === 'range' ? Number(value.start ?? 0) : 0;
@@ -73,28 +70,6 @@ export default function VideoScrubber({ src, duration, mode, value, onChange, sh
     }
   }
 
-  function clamp(n: number): number {
-    if (!isFinite(n) || n < 0) return 0;
-    if (duration && n > duration) return duration;
-    return n;
-  }
-
-  function setStart(val: number) {
-    const n = Number(val) || 0;
-    onChange({ ...value, start: clamp(n) });
-    seekTo(n);
-  }
-  function setEnd(val: number) {
-    const n = Number(val) || 0;
-    onChange({ ...value, end: clamp(n) });
-    seekTo(n);
-  }
-  function setPoint(val: number) {
-    const n = Number(val) || 0;
-    onChange({ ...value, time: clamp(n) });
-    seekTo(n);
-  }
-
   return (
     <div className="scrubber">
       <video ref={videoRef} className="preview" src={src} controls preload="metadata" onLoadedMetadata={onMeta} />
@@ -119,37 +94,23 @@ export default function VideoScrubber({ src, duration, mode, value, onChange, sh
         </Slider>
       </div>
 
+      {/* 只保留只读读数：起点/终点靠拖杆调，精确到 0.01s，比手打数字更好用，
+          也不必再摆一排输入框把版面撑开 */}
       <div className="times">
         {mode === 'range' ? (
-          <>
-            {showTimeFields && (
-              <>
-                <div className="tfield">
-                  <label>起点（秒）</label>
-                  <AppNumber value={startVal} min={0} max={maxVal} step={0.01} label="起点" onChange={setStart} />
-                </div>
-                <div className="tfield">
-                  <label>终点（秒）</label>
-                  <AppNumber value={endVal} min={0} max={maxVal} step={0.01} label="终点" onChange={setEnd} />
-                </div>
-              </>
-            )}
-            <div className="readout">
-              选中 <b>{formatTime(Math.max(0, endVal - startVal))}</b>
-              <span className="dim">/ 全片 {formatTime(duration)}</span>
-            </div>
-          </>
+          <div className="readout">
+            <span className="mark">
+              {formatTime(startVal)} → {formatTime(endVal)}
+            </span>
+            <span className="sep">·</span>
+            选中 <b>{formatTime(Math.max(0, endVal - startVal))}</b>
+            <span className="dim">/ 全片 {formatTime(duration)}</span>
+          </div>
         ) : (
-          <>
-            <div className="tfield">
-              <label>时间点（秒）</label>
-              <AppNumber value={endVal} min={0} max={maxVal} step={0.01} label="时间点" onChange={setPoint} />
-            </div>
-            <div className="readout">
-              <b>{formatTime(endVal)}</b>
-              <span className="dim">/ 全片 {formatTime(duration)}</span>
-            </div>
-          </>
+          <div className="readout">
+            <span className="mark">{formatTime(endVal)}</span>
+            <span className="dim">/ 全片 {formatTime(duration)}</span>
+          </div>
         )}
       </div>
     </div>
