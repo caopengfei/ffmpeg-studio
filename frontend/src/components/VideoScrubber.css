@@ -16,13 +16,12 @@
   padding: 12px 6px;
 }
 
-/* Slider 默认渲染成内联 span，手柄是 position:absolute + left:%。
-   这里必须自己给它定位上下文（否则手柄会飘到左下角），
-   同时用 flex 把 span 变成块级容器，rail 才有高度/宽度 */
+/* 轨道 22px 高、有效条 6px：两者不用 flex 居中（HeroUI root 自带 grid，
+   flex 覆盖后 rail 仍贴顶），改各自绝对定位到中线，对齐才稳定。
+   手柄左右位置全由 RAC 内联 left 驱动，CSS 只定 top（纯视觉）。 */
 .scrubber .track {
   position: relative;
-  display: flex;
-  align-items: center;
+  display: block;
   height: 22px;
   cursor: pointer;
   touch-action: none;
@@ -30,8 +29,11 @@
 }
 
 .scrubber .rail {
-  position: relative;
-  width: 100%;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
   height: 6px;
   border-radius: 3px;
   background: #e6e9ee;
@@ -45,6 +47,8 @@
 }
 
 .scrubber .handle {
+  /* RAC 只写内联 left，不管 top：这里定死中线，圆圈落在条子正中 */
+  top: 50%;
   display: block;
   width: 14px;
   height: 14px;
