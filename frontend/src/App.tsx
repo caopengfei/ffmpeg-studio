@@ -8,6 +8,7 @@ import TrimTab from './tabs/TrimTab';
 import ResizeTab from './tabs/ResizeTab';
 import SnapshotTab from './tabs/SnapshotTab';
 import GifTab from './tabs/GifTab';
+import WatermarkTab from './tabs/WatermarkTab';
 
 // 侧栏导航。icon 是 24×24 viewBox 下的 path，统一线稿风格（stroke=currentColor），
 // 这样选中/悬停时颜色跟着 CSS 走，不用为每个状态准备两套图标
@@ -56,12 +57,9 @@ const tabs = [
   },
 ];
 
-// Task 7–11 替换为真实 Tab：每个 key 先用占位卡顶着，保证 App 壳可渲染、可构建。
-function WatermarkPlaceholder(): JSX.Element {
-  return <div className="card">迁移中：加水印</div>;
-}
+// 全部 Tab 已迁移为真实组件。
 const tabComponents: Record<string, () => JSX.Element> = {
-  watermark: WatermarkPlaceholder,
+  watermark: WatermarkTab,
   transcode: TranscodeTab,
   compress: CompressTab,
   trim: TrimTab,
@@ -211,7 +209,7 @@ export default function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const TabBody = tabComponents[current] ?? WatermarkPlaceholder;
+  const TabBody = tabComponents[current] ?? WatermarkTab;
 
   return (
     <div className="shell">
