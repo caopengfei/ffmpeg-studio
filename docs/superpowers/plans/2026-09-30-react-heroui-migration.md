@@ -53,6 +53,9 @@ frontend/
 
 删文件时机：每个新文件落地且 `npm run build` 通过后再删对应旧文件，不提前删。
 
+**构建注意**：`vite build` 默认清空 `frontend/dist`，会把被跟踪的 `frontend/dist/.gitkeep` 一起删掉。
+每次跑完 `npm run build` 后执行 `git checkout -- frontend/dist/.gitkeep`（若被删）再提交，保持工作树干净。
+
 ---
 
 ### Task 1: 分支 + 工具链（React/HeroUI/Tailwind 跑通最小页面）
