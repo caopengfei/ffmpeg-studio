@@ -19,13 +19,15 @@ interface VideoScrubberProps {
   mode: 'range' | 'point';
   value: ScrubValue;
   onChange: (v: ScrubValue) => void;
+  // range 模式是否显示起点/终点数字框（GIF 页隐藏，只留拖杆）
+  showTimeFields?: boolean;
 }
 
 // HeroUI Slider 没有 min-steps-between-thumbs，按 Vue 的 5 步（step=0.01）
 // 在 onChange 里手动保证双手柄最小间隔 0.05
 const MIN_GAP = 0.05;
 
-export default function VideoScrubber({ src, duration, mode, value, onChange }: VideoScrubberProps) {
+export default function VideoScrubber({ src, duration, mode, value, onChange, showTimeFields = true }: VideoScrubberProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const startVal = mode === 'range' ? Number(value.start ?? 0) : 0;
@@ -110,22 +112,28 @@ export default function VideoScrubber({ src, duration, mode, value, onChange }: 
           <Slider.Track className="rail">
             <Slider.Fill className="sel" />
           </Slider.Track>
-          <Slider.Thumb className="handle" aria-label="时间手柄" />
-          {mode === 'range' && <Slider.Thumb className="handle" aria-label="结束时间" />}
+          {/* RAC 多手柄靠 index 区分：不传时两个手柄都绑 values[0]，
+              终点手柄会叠在起点上（曾因此导致拖杆错位） */}
+          <Slider.Thumb className="handle" index={0} aria-label="时间手柄" />
+          {mode === 'range' && <Slider.Thumb className="handle" index={1} aria-label="结束时间" />}
         </Slider>
       </div>
 
       <div className="times">
         {mode === 'range' ? (
           <>
-            <div className="tfield">
-              <label>起点（秒）</label>
-              <AppNumber value={startVal} min={0} max={maxVal} step={0.01} label="起点" onChange={setStart} />
-            </div>
-            <div className="tfield">
-              <label>终点（秒）</label>
-              <AppNumber value={endVal} min={0} max={maxVal} step={0.01} label="终点" onChange={setEnd} />
-            </div>
+            {showTimeFields && (
+              <>
+                <div className="tfield">
+                  <label>起点（秒）</label>
+                  <AppNumber value={startVal} min={0} max={maxVal} step={0.01} label="起点" onChange={setStart} />
+                </div>
+                <div className="tfield">
+                  <label>终点（秒）</label>
+                  <AppNumber value={endVal} min={0} max={maxVal} step={0.01} label="终点" onChange={setEnd} />
+                </div>
+              </>
+            )}
             <div className="readout">
               选中 <b>{formatTime(Math.max(0, endVal - startVal))}</b>
               <span className="dim">/ 全片 {formatTime(duration)}</span>

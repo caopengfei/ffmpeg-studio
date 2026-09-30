@@ -147,6 +147,7 @@ export default function GifTab() {
             mode="range"
             value={range}
             onChange={(v) => setRange({ start: v.start, end: v.end })}
+            showTimeFields={false}
           />
         </div>
       )}
