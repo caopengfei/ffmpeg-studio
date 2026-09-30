@@ -215,7 +215,7 @@ export const api = {
   preparePreview: (path: string): Promise<any> => Backend.PreparePreview(path),
   mediaURL: (path: string): Promise<string> => Backend.MediaURL(path),
   previewCommand: (spec: any): Promise<{ steps: string[]; err: string }> => Backend.PreviewCommand(spec),
-  startTask: (spec: any): Promise<void> => Backend.StartTask(spec),
+  startTask: (spec: any): Promise<string> => Backend.StartTask(spec),
   cancelTask: (id = ''): Promise<void> => Backend.CancelTask(id),
   taskBusy: (): Promise<boolean> => Backend.TaskBusy(),
   suggestOutputPath: (input: string, kind: string): Promise<string> => Backend.SuggestOutputPath(input, kind),
@@ -466,11 +466,11 @@ export function useTask() {
 
 - [ ] **Step 4: 类型检查 + Commit**
 
-先装 React 类型（Task 1 未装，tsc 需要）：
+先装 React 类型与 tsc（Task 1 未装）：
 ```bash
-npm install -D @types/react @types/react-dom
+npm install -D @types/react @types/react-dom typescript
 ```
-Run:
+Run（本地已有 typescript 后 `npx tsc` 即用，无需 `-p`）：
 ```bash
 npx tsc --noEmit --allowJs --jsx react-jsx --esModuleInterop --skipLibCheck --module esnext --moduleResolution bundler --target es2020 src/hooks/useMediaSource.ts src/hooks/useCommandPreview.ts src/hooks/baseFields.ts src/hooks/useTask.ts src/api.ts
 ```
