@@ -1,0 +1,103 @@
+.scrubber {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scrubber .preview {
+  width: 100%;
+  max-height: 340px;
+  background: #000;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+
+.scrubber .track-row {
+  padding: 12px 6px;
+}
+
+/* Slider 默认渲染成内联 span，手柄是 position:absolute + left:%。
+   这里必须自己给它定位上下文（否则手柄会飘到左下角），
+   同时用 flex 把 span 变成块级容器，rail 才有高度/宽度 */
+.scrubber .track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 22px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.scrubber .rail {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e6e9ee;
+}
+
+.scrubber .sel {
+  position: absolute;
+  height: 100%;
+  border-radius: 3px;
+  background: #93b4f7;
+}
+
+.scrubber .handle {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+  cursor: grab;
+  outline: none;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.scrubber .handle:hover {
+  transform: scale(1.12);
+}
+
+.scrubber .handle:active {
+  cursor: grabbing;
+}
+
+.scrubber .handle:focus-visible {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.scrubber .times {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.scrubber .tfield {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 130px;
+}
+
+.scrubber .tfield label {
+  font-size: 11px;
+  color: var(--text-mute);
+}
+
+.scrubber .readout {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.scrubber .readout b {
+  color: var(--text);
+}
+
+.scrubber .readout .dim {
+  color: var(--text-mute);
+}

@@ -1,0 +1,57 @@
+.cmd {
+  margin-top: 2px;
+}
+
+.cmd .toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  border: none;
+  background: none;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.cmd .caret {
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.cmd .caret[data-expanded='true'] {
+  transform: rotate(90deg);
+}
+
+.cmd .badge {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #eef1f5;
+  color: var(--text-dim);
+}
+
+.cmd .body {
+  margin-top: 8px;
+}
+
+.cmd .toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.cmd .line {
+  margin: 0 0 6px;
+  padding: 9px 11px;
+  background: #f7f8fa;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}

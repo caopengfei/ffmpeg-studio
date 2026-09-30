@@ -1,0 +1,50 @@
+.picker {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #fbfcfd;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.picker.hovering {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.pick-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.pick-hint {
+  color: var(--text-mute);
+  font-size: 12px;
+}
+
+.pick-filled {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  background: #fff;
+  border-radius: var(--radius-sm);
+}
+
+.pick-info {
+  min-width: 0;
+}
+
+.pick-name {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pick-meta {
+  font-size: 11px;
+  color: var(--text-mute);
+}
