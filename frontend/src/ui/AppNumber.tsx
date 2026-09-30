@@ -38,7 +38,11 @@ export default function AppNumber({ value, min, max, step = 1, disabled = false,
       aria-label={label}
       onChange={(v) => onChange(Number.isNaN(v) ? 0 : v)}
     >
+      {/* 注意子元素顺序：HeroUI 用 :has(slot) 把组切成 40px | 1fr | 40px 三列，
+          依次放 decrement / input / increment。input 放第一个会被塞进 40px 列
+          （曾因此导致输入框被压扁、数字显示不全），必须按这个顺序写 */}
       <NumberField.Group>
+        <NumberField.DecrementButton />
         <NumberField.Input
           placeholder={placeholder}
           onBlur={() => {
@@ -46,8 +50,7 @@ export default function AppNumber({ value, min, max, step = 1, disabled = false,
             if (c !== safe) onChange(c);
           }}
         />
-        <NumberField.IncrementButton>+</NumberField.IncrementButton>
-        <NumberField.DecrementButton>-</NumberField.DecrementButton>
+        <NumberField.IncrementButton />
       </NumberField.Group>
     </NumberField>
   );
