@@ -800,6 +800,7 @@ git commit -m "chore: CI renamed to React, e2e selectors aligned, exe size <X>MB
   5. **清掉 `u-coll-content` 残留引用**（Task 6 删掉了该全局类，`ProgressPanel.tsx` / `CommandPreview.tsx` 的 className 残留是 inert 的，全部改掉——grep `u-coll-` 确认零残留）。
   6. **命令预览 dep 补 `info`**（Task 7 评审遗留）：各 Tab 的 `useCommandPreview` dep 数组缺 `info`（Vue 版同病），导致 probe 刚完成时预览可能带旧时长/尺寸——把 `info` 加进每个 Tab 的 dep 数组。
   7. **注释修正**（Task 9 评审遗留）：Trim/Resize 的守卫注释仍写 “path-keyed”，实际已是 path+duration+size 指纹——改字样。
+  8. **拖拽监听收尾**（Task 11 评审遗留）：五个 `start*` 拖拽只在 `pointerup` 解绑 window 监听——加上 `pointercancel` 同路解绑（与 `up` 同一函数），避免触摸取消/中途卸载时泄漏。
 
   `npm run build` + `npm test` 通过后与 Step 6 合并提交（commit message 追加 `, hardening`）。
 
