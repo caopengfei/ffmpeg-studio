@@ -466,6 +466,10 @@ export function useTask() {
 
 - [ ] **Step 4: 类型检查 + Commit**
 
+先装 React 类型（Task 1 未装，tsc 需要）：
+```bash
+npm install -D @types/react @types/react-dom
+```
 Run:
 ```bash
 npx tsc --noEmit --allowJs --jsx react-jsx --esModuleInterop --skipLibCheck --module esnext --moduleResolution bundler --target es2020 src/hooks/useMediaSource.ts src/hooks/useCommandPreview.ts src/hooks/baseFields.ts src/hooks/useTask.ts src/api.ts
