@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api, events, formatSize } from './api';
 import TranscodeTab from './tabs/TranscodeTab';
 import CompressTab from './tabs/CompressTab';
+import TrimTab from './tabs/TrimTab';
+import ResizeTab from './tabs/ResizeTab';
 
 // 侧栏导航。icon 是 24×24 viewBox 下的 path，统一线稿风格（stroke=currentColor），
 // 这样选中/悬停时颜色跟着 CSS 走，不用为每个状态准备两套图标
@@ -56,12 +58,6 @@ const tabs = [
 function WatermarkPlaceholder(): JSX.Element {
   return <div className="card">迁移中：加水印</div>;
 }
-function TrimPlaceholder(): JSX.Element {
-  return <div className="card">迁移中：截取片段</div>;
-}
-function ResizePlaceholder(): JSX.Element {
-  return <div className="card">迁移中：缩放分辨率</div>;
-}
 function SnapshotPlaceholder(): JSX.Element {
   return <div className="card">迁移中：抽帧截图</div>;
 }
@@ -72,8 +68,8 @@ const tabComponents: Record<string, () => JSX.Element> = {
   watermark: WatermarkPlaceholder,
   transcode: TranscodeTab,
   compress: CompressTab,
-  trim: TrimPlaceholder,
-  resize: ResizePlaceholder,
+  trim: TrimTab,
+  resize: ResizeTab,
   snapshot: SnapshotPlaceholder,
   gif: GifPlaceholder,
 };
