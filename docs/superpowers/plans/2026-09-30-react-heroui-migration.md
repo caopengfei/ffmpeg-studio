@@ -782,6 +782,7 @@ git commit -m "chore: CI renamed to React, e2e selectors aligned, exe size <X>MB
   3. **registerFile Promise 决策**（FilePicker 传 Promise 当 MediaFile 用，Vue 版同病）：改为 `await api.registerFile()` 后再 `onChange`，修掉这个继承来的小 bug。
   4. **Task 5 Minor #3–#9 顺手修**：copy 超时清理、onMeta isFinite、onUpdate 数组长度、useEffect 赋值 ref、ProgressPanel 默认值、showLogs 新任务重置、codec 缺失 guard。
   5. **清掉 `u-coll-content` 残留引用**（Task 6 删掉了该全局类，`ProgressPanel.tsx` / `CommandPreview.tsx` 的 className 残留是 inert 的，全部改掉——grep `u-coll-` 确认零残留）。
+  6. **命令预览 dep 补 `info`**（Task 7 评审遗留）：各 Tab 的 `useCommandPreview` dep 数组缺 `info`（Vue 版同病），导致 probe 刚完成时预览可能带旧时长/尺寸——把 `info` 加进每个 Tab 的 dep 数组。
 
   `npm run build` + `npm test` 通过后与 Step 6 合并提交（commit message 追加 `, hardening`）。
 
