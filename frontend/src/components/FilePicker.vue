@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onUnmounted } from 'vue'
+import { motion, AnimatePresence } from 'motion-v'
 import { api, events, formatSize } from '../api'
 
 const props = defineProps({
@@ -46,18 +47,36 @@ onUnmounted(() => {
     @dragover.prevent
     @dragleave.prevent="hovering = false"
   >
-    <div v-if="!modelValue" class="pick-empty">
-      <div class="pick-hint">{{ label || '选择文件，或直接拖进来' }}</div>
-      <button class="primary" @click="choose">浏览…</button>
-    </div>
+    <AnimatePresence mode="wait" :initial="false">
+      <motion.div
+        v-if="!modelValue"
+        key="empty"
+        class="pick-empty"
+        :initial="{ opacity: 0, y: -4 }"
+        :animate="{ opacity: 1, y: 0 }"
+        :exit="{ opacity: 0, y: 4 }"
+        :transition="{ duration: 0.14 }"
+      >
+        <div class="pick-hint">{{ label || '选择文件，或直接拖进来' }}</div>
+        <button class="primary" @click="choose">浏览…</button>
+      </motion.div>
 
-    <div v-else class="pick-filled">
-      <div class="pick-info">
-        <div class="pick-name" :title="modelValue.path">{{ modelValue.name }}</div>
-        <div class="pick-meta mono">{{ formatSize(modelValue.size) }}</div>
-      </div>
-      <button class="tiny" @click="choose">更换</button>
-    </div>
+      <motion.div
+        v-else
+        key="filled"
+        class="pick-filled"
+        :initial="{ opacity: 0, y: -4 }"
+        :animate="{ opacity: 1, y: 0 }"
+        :exit="{ opacity: 0, y: 4 }"
+        :transition="{ duration: 0.14 }"
+      >
+        <div class="pick-info">
+          <div class="pick-name" :title="modelValue.path">{{ modelValue.name }}</div>
+          <div class="pick-meta mono">{{ formatSize(modelValue.size) }}</div>
+        </div>
+        <button class="tiny" @click="choose">更换</button>
+      </motion.div>
+    </AnimatePresence>
   </div>
 </template>
 

@@ -139,7 +139,7 @@ pre,
   transition: background 0.14s, color 0.14s, border-color 0.14s, box-shadow 0.14s;
 }
 
-/* 选中项左缘的竖条 */
+/* 选中项左缘的竖条（Reka Tabs 用 data-state 标记选中） */
 .nav-item::before {
   content: '';
   position: absolute;
@@ -153,7 +153,7 @@ pre,
   transition: height 0.18s ease;
 }
 
-.nav-item.active::before {
+.nav-item[data-state='active']::before {
   height: 23px;
 }
 
@@ -203,22 +203,22 @@ pre,
   transform: translateX(1px);
 }
 
-.nav-item.active {
+.nav-item[data-state='active'] {
   background: #fff;
   border-color: rgba(37, 99, 235, 0.22);
   color: var(--primary);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 5px 14px -8px rgba(37, 99, 235, 0.45);
 }
 
-.nav-item.active .nav-icon {
+.nav-item[data-state='active'] .nav-icon {
   color: var(--primary);
 }
 
-.nav-item.active .nav-label {
+.nav-item[data-state='active'] .nav-label {
   font-weight: 600;
 }
 
-.nav-item.active .nav-desc {
+.nav-item[data-state='active'] .nav-desc {
   color: #4b7fe8;
 }
 
@@ -313,7 +313,15 @@ pre,
   gap: 15px;
 }
 
-.setup-steps > li {
+/* 手动安装三步（折叠在 Collapsible 里，改成 div 结构） */
+.manual-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.step-row {
   display: flex;
   gap: 11px;
 }
@@ -387,14 +395,34 @@ pre,
   color: var(--text-dim);
 }
 
-.probe-detail summary {
-  cursor: pointer;
+.probe-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 11.5px;
   color: var(--text-dim);
+  cursor: pointer;
   user-select: none;
+  outline: none;
 }
 
-.probe-detail summary:hover {
+.probe-summary:hover {
   color: var(--text);
+}
+
+.probe-summary .caret {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+
+.probe-summary .caret.open {
+  transform: rotate(90deg);
 }
 
 .probe-detail p {
@@ -420,9 +448,10 @@ pre,
   border-radius: 3px;
   background: #e8ecf2;
   overflow: hidden;
+  display: block;
 }
 
-.install-bar > i {
+.install-bar-fill {
   display: block;
   height: 100%;
   width: 0;
@@ -453,6 +482,10 @@ pre,
 .main {
   overflow-y: auto;
   padding: 20px 24px 40px;
+}
+
+.page {
+  min-width: 0;
 }
 
 .page-head {
@@ -527,8 +560,6 @@ pre,
 }
 
 input[type="text"],
-input[type="number"],
-select,
 textarea {
   width: 100%;
   padding: 7px 10px;
@@ -543,21 +574,14 @@ textarea {
 }
 
 input:focus,
-select:focus,
 textarea:focus {
   border-color: var(--primary);
 }
 
-input:disabled,
-select:disabled {
+input:disabled {
   background: #f6f7f9;
   color: var(--text-mute);
   cursor: not-allowed;
-}
-
-input[type="range"] {
-  width: 100%;
-  accent-color: var(--primary);
 }
 
 .row {
@@ -570,15 +594,615 @@ input[type="range"] {
 .check {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   font-size: 12px;
   color: var(--text-dim);
   cursor: pointer;
 }
 
-.check input {
-  accent-color: var(--primary);
+.check.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---------- headless 组件样式层 ---------- */
+/* Reka UI / Ark UI 只给行为不给皮，下面是统一的皮肤 */
+
+/* --- Reka Select --- */
+
+.u-sel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
+  transition: border-color 0.12s;
+  outline: none;
+}
+
+.u-sel:hover {
+  border-color: #9aa1ab;
+}
+
+.u-sel:focus-visible,
+.u-sel[data-state="open"] {
+  border-color: var(--primary);
+}
+
+.u-sel[data-disabled] {
+  background: #f6f7f9;
+  color: var(--text-mute);
+  cursor: not-allowed;
+}
+
+.u-sel-ico {
+  display: grid;
+  place-items: center;
+  color: var(--text-mute);
+  transition: transform 0.15s;
+}
+
+.u-sel-ico svg {
+  width: 14px;
+  height: 14px;
+}
+
+.u-sel[data-state="open"] .u-sel-ico {
+  transform: rotate(180deg);
+}
+
+.u-sel-pop {
+  z-index: 50;
+  min-width: var(--reka-select-trigger-width);
+  max-height: 320px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 30px -12px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  animation: pop-in 0.12s ease-out;
+}
+
+.u-sel-viewport {
+  padding: 4px;
+}
+
+.u-sel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.u-sel-item[data-highlighted] {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.u-sel-item[data-state="checked"] {
+  font-weight: 500;
+}
+
+.u-sel-item[data-disabled] {
+  color: var(--text-mute);
+  cursor: not-allowed;
+}
+
+.u-sel-ind {
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+}
+
+.u-sel-ind svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* --- Reka Slider --- */
+
+.u-slider {
+  --reka-slider-thumb-transform: translate(-50%, -50%);
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 20px;
+  touch-action: none;
+  user-select: none;
+}
+
+.u-slider-track {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e6e9ee;
+  outline: none;
+}
+
+.u-slider-range {
+  position: absolute;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #5b8cf5, var(--primary));
+}
+
+.u-slider-thumb {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+  cursor: grab;
+  outline: none;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.u-slider-thumb:hover {
+  transform: var(--reka-slider-thumb-transform) scale(1.12);
+}
+
+.u-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.u-slider-thumb:focus-visible {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.u-slider[data-disabled] .u-slider-track {
+  background: #eef0f3;
+}
+
+.u-slider[data-disabled] .u-slider-thumb {
+  border-color: var(--border-strong);
+  background: #f6f7f9;
+}
+
+/* --- Ark NumberInput --- */
+
+.u-num {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.u-num-input {
+  width: 100%;
+  padding: 7px 34px 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.u-num-input::-webkit-outer-spin-button,
+.u-num-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.u-num-input:focus {
+  border-color: var(--primary);
+}
+
+.u-num-input[data-disabled] {
+  background: #f6f7f9;
+  color: var(--text-mute);
+  cursor: not-allowed;
+}
+
+.u-num-ctl {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  bottom: 1px;
+  display: flex;
+  flex-direction: column;
+  width: 24px;
+  border-left: 1px solid var(--border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  overflow: hidden;
+}
+
+.u-num-btn {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  border: none;
+  padding: 0;
+  background: #fafbfc;
+  color: var(--text-mute);
+  cursor: pointer;
+}
+
+.u-num-btn:hover:not(:disabled) {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.u-num-btn:active:not(:disabled) {
+  background: #dfe9fd;
+}
+
+.u-num-btn svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* --- Ark ColorPicker --- */
+
+.u-color-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px 4px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.u-color-trigger:hover,
+.u-color-trigger[data-state="open"] {
+  border-color: var(--primary);
+}
+
+.u-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.u-color-hex {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.u-color-pop {
+  z-index: 60;
+  width: 200px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 34px -12px rgba(15, 23, 42, 0.3);
+  animation: pop-in 0.12s ease-out;
+}
+
+.u-color-area {
+  position: relative;
+  width: 100%;
+  height: 130px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+/* zag 的 area-background 是 relative 且无尺寸（inline style 写死 position），渐变会被压扁；
+   不能用 absolute 覆盖 inline position，改为撑满父容器 */
+.u-color-area [data-scope='color-picker'][data-part='area-background'] {
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+}
+
+.u-color-area-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+}
+
+.u-color-hue {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 14px;
+  margin-top: 10px;
+  border-radius: 7px;
+  background: linear-gradient(
+    90deg,
+    #f00 0%,
+    #ff0 17%,
+    #0f0 33%,
+    #0ff 50%,
+    #00f 67%,
+    #f0f 83%,
+    #f00 100%
+  );
+}
+
+.u-color-hue-track {
+  position: absolute;
+  inset: 0;
+}
+
+.u-color-hue-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transform: translate(-50%, -50%);
+  outline: none;
+}
+
+/* --- Reka Checkbox --- */
+/* 注意：CheckboxRoot 渲染的是 <button>，会被下方全局 button 皮肤污染。
+   padding 必须归零，hover/禁用规则的特异性也要压过 button:hover:not(:disabled) */
+
+.u-check {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  flex: none;
+  padding: 0; /* 全局 button 的 7px 14px 会把方块撑成 30×16 的胶囊 */
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  outline: none;
+}
+
+.u-check:hover:not([data-disabled]) {
+  border-color: var(--primary);
+}
+
+.u-check[data-state="checked"],
+.u-check[data-state="indeterminate"] {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+/* 勾选态悬停：深一档蓝，别被全局 button:hover 的灰白盖掉 */
+.u-check[data-state="checked"]:hover:not([data-disabled]),
+.u-check[data-state="indeterminate"]:hover:not([data-disabled]) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.u-check:focus-visible {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.u-check[data-disabled] {
+  background: #f6f7f9;
+  border-color: var(--border);
+  cursor: not-allowed;
+  opacity: 1; /* 禁用的弱化交给外层 .check.disabled，避免和全局 button:disabled 叠加过淡 */
+}
+
+.u-check[data-disabled][data-state="checked"],
+.u-check[data-disabled][data-state="indeterminate"] {
+  background: #9db8e8;
+  border-color: #9db8e8;
+}
+
+.u-check-ind {
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.u-check-ind svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* --- Reka Switch --- */
+
+.u-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 17px;
+  flex: none;
+  padding: 2px;
+  border: none; /* 全局 button 的 1px 边框会挤掉滑块高度 */
+  border-radius: 10px;
+  background: #cdd3db;
+  cursor: pointer;
+  transition: background 0.15s;
+  outline: none;
+}
+
+.u-switch[data-state="checked"] {
+  background: var(--primary);
+}
+
+/* 同上：压过全局 button:hover:not(:disabled) 的灰白 hover 态 */
+.u-switch:hover:not([data-disabled]) {
+  background: #b7bfca;
+}
+
+.u-switch[data-state="checked"]:hover:not([data-disabled]) {
+  background: var(--primary-hover);
+}
+
+.u-switch:focus-visible {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.u-switch[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.u-switch-thumb {
+  display: block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.3);
+  transition: transform 0.15s;
+}
+
+.u-switch[data-state="checked"] .u-switch-thumb {
+  transform: translateX(13px);
+}
+
+/* --- Reka ToggleGroup（缩放预设这类胶囊组） --- */
+
+.u-tg {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.u-tg-item {
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  background: #fff;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.12s;
+  outline: none;
+  white-space: nowrap;
+}
+
+.u-tg-item:hover {
+  border-color: #9aa1ab;
+  background: #fafbfc;
+}
+
+.u-tg-item[data-state="on"] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.u-tg-item:focus-visible {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+/* --- Ark SegmentGroup（音频码率这类分段选择） --- */
+
+.u-seg {
+  position: relative;
+  display: inline-flex;
+  gap: 0;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f2f4f7;
+}
+
+.u-seg-ind {
+  position: absolute;
+  z-index: 0;
+  /* zag 用 --left/--top/--width/--height 四个变量驱动指示器位置（自带过渡） */
+  left: var(--left, 0);
+  top: var(--top, 0);
+  width: var(--width, 0);
+  height: var(--height, 0);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.14);
+}
+
+.u-seg-item {
+  position: relative;
+  z-index: 1;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+}
+
+.u-seg-item[data-state="checked"] {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.u-seg-item:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.35);
+}
+
+/* --- Reka Collapsible（命令预览 / 日志这些折叠块） --- */
+
+.u-coll-content {
+  overflow: hidden;
+}
+
+.u-coll-content[data-state="open"] {
+  animation: coll-down 0.16s ease-out;
+}
+
+.u-coll-content[data-state="closed"] {
+  animation: coll-up 0.12s ease-in;
+}
+
+@keyframes coll-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--reka-collapsible-content-height);
+  }
+}
+
+@keyframes coll-up {
+  from {
+    height: var(--reka-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 button {

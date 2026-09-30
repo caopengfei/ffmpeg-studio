@@ -5,6 +5,11 @@ import MediaInfoCard from '../components/MediaInfoCard.vue'
 import CommandPreview from '../components/CommandPreview.vue'
 import ProgressPanel from '../components/ProgressPanel.vue'
 import { api, formatSize } from '../api'
+import AppSelect from '../ui/AppSelect.vue'
+import AppSlider from '../ui/AppSlider.vue'
+import AppNumber from '../ui/AppNumber.vue'
+import AppCheck from '../ui/AppCheck.vue'
+import { SegmentGroupRoot, SegmentGroupIndicator, SegmentGroupItem, SegmentGroupItemText, SegmentGroupItemHiddenInput } from '@ark-ui/vue'
 import { useTask } from '../composables/useTask'
 import { useMediaSource, useCommandPreview, baseFields } from '../composables/useTab'
 
@@ -14,6 +19,20 @@ const mode = ref('quality') // quality | targetSize
 const crf = ref(26)
 const preset = ref('medium')
 const copyAudio = ref(true)
+
+const PRESET_OPTIONS = [
+  { value: 'veryfast', label: 'veryfast' },
+  { value: 'fast', label: 'fast' },
+  { value: 'medium', label: 'medium（默认）' },
+  { value: 'slow', label: 'slow' },
+  { value: 'veryslow', label: 'veryslow' },
+]
+const AUDIO_KBPS_OPTS = [
+  { value: 64, label: '64 · 语音' },
+  { value: 96, label: '96' },
+  { value: 128, label: '128 · 标准' },
+  { value: 192, label: '192 · 高保真' },
+]
 
 const targetMB = ref(0)
 const audioKbps = ref(128)
@@ -113,41 +132,39 @@ function initTarget() {
       <div class="grid2" style="margin-top: 14px">
         <div class="field">
           <label>画质 CRF：{{ crf }}</label>
-          <input v-model.number="crf" type="range" min="18" max="32" step="1" />
+          <AppSlider v-model="crf" :min="18" :max="32" :step="1" />
           <span class="tip">越小越清晰。23 默认，28 明显变小，32 以上能看出损伤</span>
         </div>
         <div class="field">
           <label>编码速度</label>
-          <select v-model="preset">
-            <option value="veryfast">veryfast</option>
-            <option value="fast">fast</option>
-            <option value="medium">medium（默认）</option>
-            <option value="slow">slow</option>
-            <option value="veryslow">veryslow</option>
-          </select>
+          <AppSelect v-model="preset" :options="PRESET_OPTIONS" />
         </div>
       </div>
-      <label class="check" style="margin-top: 12px">
-        <input v-model="copyAudio" type="checkbox" />
+      <AppCheck v-model="copyAudio" style="margin-top: 12px">
         音频直接复制，不重新编码（更快且无损）
-      </label>
+      </AppCheck>
     </template>
 
     <template v-else>
       <div class="grid3" style="margin-top: 14px">
         <div class="field">
           <label>目标体积（MB）</label>
-          <input v-model.number="targetMB" type="number" min="0.1" step="0.1" />
+          <AppNumber v-model="targetMB" :min="0.1" :step="0.1" />
           <span class="tip" v-if="info">源文件 {{ formatSize(info.size) }}</span>
         </div>
         <div class="field">
           <label>音频码率（kbps）</label>
-          <select v-model.number="audioKbps">
-            <option :value="64">64 · 语音</option>
-            <option :value="96">96</option>
-            <option :value="128">128 · 标准</option>
-            <option :value="192">192 · 高保真</option>
-          </select>
+          <SegmentGroupRoot
+            class="u-seg"
+            :model-value="String(audioKbps)"
+            @update:model-value="(v) => (audioKbps = Number(v))"
+          >
+            <SegmentGroupIndicator class="u-seg-ind" />
+            <SegmentGroupItem v-for="o in AUDIO_KBPS_OPTS" :key="o.value" :value="String(o.value)" class="u-seg-item">
+              <SegmentGroupItemText>{{ o.label }}</SegmentGroupItemText>
+              <SegmentGroupItemHiddenInput />
+            </SegmentGroupItem>
+          </SegmentGroupRoot>
         </div>
         <div class="field">
           <label>计算出的视频码率</label>

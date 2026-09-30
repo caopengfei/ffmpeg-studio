@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { motion } from 'motion-v'
 import { formatSize, formatDuration } from '../api'
 
 const props = defineProps({
@@ -31,7 +32,13 @@ const audioLine = computed(() => {
 <template>
   <div v-if="loading" class="info-loading">正在读取媒体信息…</div>
 
-  <div v-else-if="info" class="info">
+  <motion.div
+    v-else-if="info"
+    class="info"
+    :initial="{ opacity: 0, y: 6 }"
+    :animate="{ opacity: 1, y: 0 }"
+    :transition="{ duration: 0.18 }"
+  >
     <div class="info-grid">
       <div class="cell">
         <span class="k">时长</span>
@@ -61,7 +68,7 @@ const audioLine = computed(() => {
         <span class="mono">{{ audioLine }}</span>
       </div>
     </div>
-  </div>
+  </motion.div>
 </template>
 
 <style scoped>

@@ -6,6 +6,9 @@ import VideoScrubber from '../components/VideoScrubber.vue'
 import CommandPreview from '../components/CommandPreview.vue'
 import ProgressPanel from '../components/ProgressPanel.vue'
 import { api, formatTime } from '../api'
+import AppSelect from '../ui/AppSelect.vue'
+import AppNumber from '../ui/AppNumber.vue'
+import AppCheck from '../ui/AppCheck.vue'
 import { useTask } from '../composables/useTask'
 import { useMediaSource, useCommandPreview, baseFields } from '../composables/useTab'
 
@@ -127,34 +130,31 @@ const canRun = computed(() => !!(batch.value ? outDir.value : asCover.value ? co
     <div class="grid3">
       <div class="field">
         <label>输出格式</label>
-        <select v-model="format">
-          <option value="png">PNG（无损）</option>
-          <option value="jpg">JPG（体积小）</option>
-          <option value="webp">WebP</option>
-        </select>
+        <AppSelect
+          v-model="format"
+          :options="[
+            { value: 'png', label: 'PNG（无损）' },
+            { value: 'jpg', label: 'JPG（体积小）' },
+            { value: 'webp', label: 'WebP' },
+          ]"
+        />
       </div>
       <div v-if="format !== 'png'" class="field">
         <label>{{ qualityLabel }}</label>
-        <input
-          v-model.number="quality"
-          type="number"
-          :min="1"
-          :max="format === 'jpg' ? 31 : 100"
-        />
+        <AppNumber :model-value="quality" :min="1" :max="format === 'jpg' ? 31 : 100" :step="1" @update:model-value="(v) => (quality = v)" />
       </div>
     </div>
 
     <div class="divider"></div>
 
-    <label class="check">
-      <input v-model="batch" type="checkbox" />
+    <AppCheck v-model="batch">
       批量抽帧：每隔一段时间抽一帧，导出成图片序列
-    </label>
+    </AppCheck>
 
     <div v-if="batch" class="grid2" style="margin-top: 10px">
       <div class="field">
         <label>间隔（秒）</label>
-        <input v-model.number="batchEvery" type="number" min="0.1" step="0.5" />
+        <AppNumber :model-value="batchEvery" :min="0.1" :step="0.5" @update:model-value="(v) => (batchEvery = v)" />
       </div>
       <div class="field">
         <label>输出目录</label>
@@ -167,10 +167,9 @@ const canRun = computed(() => !!(batch.value ? outDir.value : asCover.value ? co
 
     <template v-if="!batch">
       <div class="divider"></div>
-      <label class="check">
-        <input v-model="asCover" type="checkbox" />
+      <AppCheck v-model="asCover">
         把这帧设为视频封面（写入 attached_pic 流，视频不重编码）
-      </label>
+      </AppCheck>
       <div v-if="asCover" class="row" style="margin-top: 10px">
         <button @click="chooseCover">选择封面图片</button>
         <span class="mono" style="font-size: 12px">{{ coverImage?.name || '尚未选择' }}</span>

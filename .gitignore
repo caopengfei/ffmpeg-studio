@@ -12,3 +12,7 @@ frontend/dist/*
 tools/ui-verify/verify-dist/
 tools/ui-verify/*.png
 tools/ui-verify/result.json
+
+# 本地备份与工具缓存
+*.bak
+frontend/package.json.md5

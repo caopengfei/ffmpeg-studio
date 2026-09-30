@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { TabsRoot, TabsList, TabsTrigger, CollapsibleRoot, CollapsibleTrigger, CollapsibleContent, ProgressRoot, ProgressIndicator } from 'reka-ui'
+import { motion, AnimatePresence } from 'motion-v'
 import { api, events, formatSize } from './api'
 
 import TranscodeTab from './tabs/TranscodeTab.vue'
@@ -145,6 +147,7 @@ const installTotal = ref(0)
 const installSpeed = ref(0)
 const installError = ref('')
 const showManual = ref(false)
+const showTried = ref(false)
 
 let offInstall = null
 
@@ -207,7 +210,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="shell">
+  <TabsRoot v-model="current" orientation="vertical" class="shell">
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-mark">
@@ -230,14 +233,13 @@ onUnmounted(() => {
         </span>
       </div>
 
-      <nav class="nav">
-        <button
+      <TabsList class="nav" aria-label="功能导航">
+        <TabsTrigger
           v-for="t in tabs"
           :key="t.key"
+          :value="t.key"
           class="nav-item"
-          :class="{ active: current === t.key }"
           :title="t.desc"
-          @click="current = t.key"
         >
           <span class="nav-icon">
             <svg
@@ -256,8 +258,8 @@ onUnmounted(() => {
             <span class="nav-label">{{ t.label }}</span>
             <span class="nav-desc">{{ t.desc }}</span>
           </span>
-        </button>
-      </nav>
+        </TabsTrigger>
+      </TabsList>
 
       <div class="sidebar-foot">
         <div class="env-badge" :class="{ bad: !envOK && !checking }">
@@ -307,7 +309,9 @@ onUnmounted(() => {
 
               <!-- 安装中：进度 + 取消 -->
               <div v-if="installing" class="install-box">
-                <div class="install-bar"><i :style="{ width: installPct + '%' }"></i></div>
+                <ProgressRoot :model-value="installPct" class="install-bar">
+                  <ProgressIndicator class="install-bar-fill" :style="{ width: installPct + '%' }" />
+                </ProgressRoot>
                 <div class="install-meta">
                   <span class="install-msg">{{ installMsg || '准备中…' }}</span>
                   <span class="mono">
@@ -334,9 +338,12 @@ onUnmounted(() => {
               </div>
             </div>
           </li>
+        </ol>
 
-          <template v-if="showManual">
-            <li>
+        <!-- 手动安装三步：折叠收放，默认收起 -->
+        <CollapsibleRoot v-model:open="showManual">
+          <CollapsibleContent class="u-coll-content manual-steps">
+            <div class="step-row">
               <span class="step-no">2</span>
               <div class="step-body">
                 <b>自己下载完整版</b>
@@ -348,9 +355,9 @@ onUnmounted(() => {
                   <button @click="openDownload">打开下载页</button>
                 </div>
               </div>
-            </li>
+            </div>
 
-            <li>
+            <div class="step-row">
               <span class="step-no">3</span>
               <div class="step-body">
                 <b>解压后整个文件夹丢进这里</b>
@@ -365,9 +372,9 @@ onUnmounted(() => {
                   </button>
                 </div>
               </div>
-            </li>
+            </div>
 
-            <li>
+            <div class="step-row">
               <span class="step-no">4</span>
               <div class="step-body">
                 <b>回到这里重新检测</b>
@@ -381,27 +388,41 @@ onUnmounted(() => {
                   </button>
                 </div>
               </div>
-            </li>
-          </template>
-        </ol>
+            </div>
+          </CollapsibleContent>
+        </CollapsibleRoot>
 
-        <details class="probe-detail">
-          <summary>照做了还是认不出来？</summary>
-          <p class="tip-line">这次一共找过这些位置（顺序即优先级）：</p>
-          <ul>
-            <li v-for="(p, i) in ffInfo?.tried || []" :key="i"><code>{{ p }}</code></li>
-          </ul>
-        </details>
+        <CollapsibleRoot v-model:open="showTried" class="probe-detail">
+          <CollapsibleTrigger class="probe-summary">
+            <span class="caret" :class="{ open: showTried }">›</span>
+            照做了还是认不出来？
+          </CollapsibleTrigger>
+          <CollapsibleContent class="u-coll-content">
+            <p class="tip-line">这次一共找过这些位置（顺序即优先级）：</p>
+            <ul>
+              <li v-for="(p, i) in ffInfo?.tried || []" :key="i"><code>{{ p }}</code></li>
+            </ul>
+          </CollapsibleContent>
+        </CollapsibleRoot>
       </div>
 
-      <template v-else>
-        <div class="page-head">
-          <h1>{{ currentTab.label }}</h1>
-          <p>{{ currentTab.desc }}</p>
-        </div>
+      <AnimatePresence v-else mode="wait">
+        <motion.div
+          :key="current"
+          class="page"
+          :initial="{ opacity: 0, y: 12 }"
+          :animate="{ opacity: 1, y: 0 }"
+          :exit="{ opacity: 0, y: -8 }"
+          :transition="{ duration: 0.16, ease: 'easeOut' }"
+        >
+          <div class="page-head">
+            <h1>{{ currentTab.label }}</h1>
+            <p>{{ currentTab.desc }}</p>
+          </div>
 
-        <component :is="currentTab.comp" />
-      </template>
+          <component :is="currentTab.comp" />
+        </motion.div>
+      </AnimatePresence>
     </main>
-  </div>
+  </TabsRoot>
 </template>

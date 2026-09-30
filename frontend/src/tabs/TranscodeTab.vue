@@ -5,6 +5,8 @@ import MediaInfoCard from '../components/MediaInfoCard.vue'
 import CommandPreview from '../components/CommandPreview.vue'
 import ProgressPanel from '../components/ProgressPanel.vue'
 import { api } from '../api'
+import AppSelect from '../ui/AppSelect.vue'
+import AppSlider from '../ui/AppSlider.vue'
 import { useTask } from '../composables/useTask'
 import { useMediaSource, useCommandPreview, baseFields } from '../composables/useTab'
 
@@ -15,6 +17,24 @@ const vcodec = ref('libx264')
 const acodec = ref('aac')
 const crf = ref(23)
 const preset = ref('medium')
+
+const CONTAINER_OPTIONS = [
+  { value: 'mp4', label: 'MP4 (.mp4)' },
+  { value: 'mkv', label: 'MKV (.mkv)' },
+  { value: 'mov', label: 'MOV (.mov)' },
+  { value: 'webm', label: 'WebM (.webm)' },
+  { value: 'mp3', label: '仅音频 · MP3' },
+  { value: 'm4a', label: '仅音频 · M4A' },
+  { value: 'wav', label: '仅音频 · WAV' },
+]
+const PRESET_OPTIONS = [
+  { value: 'ultrafast', label: 'ultrafast（最快）' },
+  { value: 'veryfast', label: 'veryfast' },
+  { value: 'fast', label: 'fast' },
+  { value: 'medium', label: 'medium（默认）' },
+  { value: 'slow', label: 'slow' },
+  { value: 'veryslow', label: 'veryslow（最小体积）' },
+]
 
 const AUDIO_ONLY = ['mp3', 'm4a', 'wav']
 const isAudioOnly = computed(() => AUDIO_ONLY.includes(container.value))
@@ -37,6 +57,8 @@ const AUDIO_CODECS = {
 
 const videoChoices = computed(() => VIDEO_CODECS[container.value] || VIDEO_CODECS.mp4)
 const audioChoices = computed(() => AUDIO_CODECS[container.value] || AUDIO_CODECS.mp4)
+const videoOpts = computed(() => videoChoices.value.map((c) => ({ value: c, label: c })))
+const audioOpts = computed(() => audioChoices.value.map((c) => ({ value: c, label: c })))
 
 // 换容器时把不再支持的编码器纠正回来，避免出现无效组合
 watch(container, () => {
@@ -112,48 +134,29 @@ const hint = computed(() => {
     <div class="grid3">
       <div class="field">
         <label>输出容器</label>
-        <select v-model="container">
-          <option value="mp4">MP4 (.mp4)</option>
-          <option value="mkv">MKV (.mkv)</option>
-          <option value="mov">MOV (.mov)</option>
-          <option value="webm">WebM (.webm)</option>
-          <option value="mp3">仅音频 · MP3</option>
-          <option value="m4a">仅音频 · M4A</option>
-          <option value="wav">仅音频 · WAV</option>
-        </select>
+        <AppSelect v-model="container" :options="CONTAINER_OPTIONS" />
       </div>
 
       <div v-if="!isAudioOnly" class="field">
         <label>视频编码器</label>
-        <select v-model="vcodec">
-          <option v-for="c in videoChoices" :key="c" :value="c">{{ c }}</option>
-        </select>
+        <AppSelect v-model="vcodec" :options="videoOpts" />
       </div>
 
       <div class="field">
         <label>音频编码器</label>
-        <select v-model="acodec">
-          <option v-for="c in audioChoices" :key="c" :value="c">{{ c }}</option>
-        </select>
+        <AppSelect v-model="acodec" :options="audioOpts" />
       </div>
     </div>
 
     <div v-if="!losslessVideo" class="grid2" style="margin-top: 12px">
       <div class="field">
         <label>画质 CRF：{{ crf }}</label>
-        <input v-model.number="crf" type="range" min="18" max="32" step="1" />
+        <AppSlider v-model="crf" :min="18" :max="32" :step="1" />
         <span class="tip">数值越小画质越好、文件越大。18 接近无损，23 是默认，28 以上明显变小</span>
       </div>
       <div class="field">
         <label>编码速度</label>
-        <select v-model="preset">
-          <option value="ultrafast">ultrafast（最快）</option>
-          <option value="veryfast">veryfast</option>
-          <option value="fast">fast</option>
-          <option value="medium">medium（默认）</option>
-          <option value="slow">slow</option>
-          <option value="veryslow">veryslow（最小体积）</option>
-        </select>
+        <AppSelect v-model="preset" :options="PRESET_OPTIONS" />
         <span class="tip">越慢压得越小，但耗时成倍增加</span>
       </div>
     </div>

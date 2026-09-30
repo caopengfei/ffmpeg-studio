@@ -1,12 +1,12 @@
 <script setup>
 import { ref } from 'vue'
+import { CollapsibleRoot, CollapsibleTrigger, CollapsibleContent } from 'reka-ui'
 
 const props = defineProps({
   steps: { type: Array, default: () => [] },
   err: { type: String, default: '' },
 })
 
-const open = ref(false)
 const copied = ref(false)
 
 async function copy() {
@@ -23,24 +23,28 @@ async function copy() {
 
 <template>
   <div class="cmd">
-    <button class="toggle ghost" @click="open = !open">
-      <span class="caret" :class="{ open }">›</span>
-      将执行的命令
-      <span v-if="steps.length > 1" class="badge">{{ steps.length }} 步</span>
-    </button>
+    <CollapsibleRoot class="cmd-root">
+      <CollapsibleTrigger class="toggle ghost">
+        <span class="caret">›</span>
+        将执行的命令
+        <span v-if="steps.length > 1" class="badge">{{ steps.length }} 步</span>
+      </CollapsibleTrigger>
 
-    <div v-if="open" class="body">
-      <div v-if="err" class="banner err">{{ err }}</div>
+      <CollapsibleContent class="u-coll-content">
+        <div class="body">
+          <div v-if="err" class="banner err">{{ err }}</div>
 
-      <template v-else-if="steps.length">
-        <div class="toolbar">
-          <button class="tiny" @click="copy">{{ copied ? '已复制' : '复制' }}</button>
+          <template v-else-if="steps.length">
+            <div class="toolbar">
+              <button class="tiny" @click="copy">{{ copied ? '已复制' : '复制' }}</button>
+            </div>
+            <pre v-for="(s, i) in steps" :key="i" class="line">{{ s }}</pre>
+          </template>
+
+          <div v-else class="empty-hint">参数填完整后这里会显示要执行的命令</div>
         </div>
-        <pre v-for="(s, i) in steps" :key="i" class="line">{{ s }}</pre>
-      </template>
-
-      <div v-else class="empty-hint">参数填完整后这里会显示要执行的命令</div>
-    </div>
+      </CollapsibleContent>
+    </CollapsibleRoot>
   </div>
 </template>
 
@@ -54,6 +58,9 @@ async function copy() {
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  border: none;
+  background: none;
+  padding: 5px 8px;
 }
 
 .caret {
@@ -63,7 +70,7 @@ async function copy() {
   line-height: 1;
 }
 
-.caret.open {
+.toggle[data-state='open'] .caret {
   transform: rotate(90deg);
 }
 

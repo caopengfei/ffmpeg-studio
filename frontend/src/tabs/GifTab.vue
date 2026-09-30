@@ -6,6 +6,10 @@ import VideoScrubber from '../components/VideoScrubber.vue'
 import CommandPreview from '../components/CommandPreview.vue'
 import ProgressPanel from '../components/ProgressPanel.vue'
 import { api, formatSize } from '../api'
+import AppSelect from '../ui/AppSelect.vue'
+import AppSlider from '../ui/AppSlider.vue'
+import AppNumber from '../ui/AppNumber.vue'
+import AppCheck from '../ui/AppCheck.vue'
 import { useTask } from '../composables/useTask'
 import { useMediaSource, useCommandPreview, baseFields } from '../composables/useTab'
 
@@ -17,7 +21,15 @@ const range = ref({ start: 0, end: 0 })
 const fps = ref(12)
 const width = ref(480)
 const twoPass = ref(true)
-const loop = ref(-1)
+// AppSelect 的值是字符串，生成参数时再 Number() 回来
+const loop = ref('-1')
+
+const LOOP_OPTIONS = [
+  { value: '-1', label: '无限循环' },
+  { value: '1', label: '播放 1 次' },
+  { value: '3', label: '播放 3 次' },
+  { value: '5', label: '播放 5 次' },
+]
 
 async function onFile(f) {
   await load(f)
@@ -118,29 +130,23 @@ watch(result, (r) => {
     <div class="grid3">
       <div class="field">
         <label>帧率：{{ fps }} fps</label>
-        <input v-model.number="fps" type="range" min="5" max="30" step="1" />
+        <AppSlider v-model="fps" :min="5" :max="30" :step="1" />
         <span class="tip">越高越流畅，体积也越大</span>
       </div>
       <div class="field">
         <label>宽度（像素）</label>
-        <input v-model.number="width" type="number" min="60" max="1280" step="10" />
+        <AppNumber :model-value="width" :min="60" :max="1280" :step="10" @update:model-value="(v) => (width = v)" />
         <span class="tip">高度按画面比例自动</span>
       </div>
       <div class="field">
         <label>循环</label>
-        <select v-model.number="loop">
-          <option :value="-1">无限循环</option>
-          <option :value="1">播放 1 次</option>
-          <option :value="3">播放 3 次</option>
-          <option :value="5">播放 5 次</option>
-        </select>
+        <AppSelect v-model="loop" :options="LOOP_OPTIONS" />
       </div>
     </div>
 
-    <label class="check" style="margin-top: 12px">
-      <input v-model="twoPass" type="checkbox" />
+    <AppCheck v-model="twoPass" style="margin-top: 12px">
       高质量模式（先生成专属调色板再编码，画质差别很大，耗时约两倍）
-    </label>
+    </AppCheck>
 
     <div class="stats">
       <span>片段 <b>{{ segLen.toFixed(1) }}</b> 秒</span>

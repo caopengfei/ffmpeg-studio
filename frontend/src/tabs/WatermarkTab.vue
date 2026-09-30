@@ -5,6 +5,13 @@ import MediaInfoCard from '../components/MediaInfoCard.vue'
 import CommandPreview from '../components/CommandPreview.vue'
 import ProgressPanel from '../components/ProgressPanel.vue'
 import { api, formatTime } from '../api'
+import { motion, AnimatePresence } from 'motion-v'
+import AppSelect from '../ui/AppSelect.vue'
+import AppSlider from '../ui/AppSlider.vue'
+import AppNumber from '../ui/AppNumber.vue'
+import AppColor from '../ui/AppColor.vue'
+import AppCheck from '../ui/AppCheck.vue'
+import AppSwitch from '../ui/AppSwitch.vue'
 import { useTask } from '../composables/useTask'
 import { useMediaSource, useCommandPreview, baseFields } from '../composables/useTab'
 // 时间段计算抽在 composables/watermarkTime.js，有独立的 node --test 用例
@@ -615,25 +622,37 @@ async function pickOutput() {
         <div v-if="!items.length" class="empty-hint" style="padding: 18px">还没有水印</div>
 
         <div v-else class="list">
-          <div
-            v-for="(it, idx) in items"
-            :key="it.id"
-            class="listitem"
-            :class="{ on: it.id === selectedId }"
-            @click="selectedId = it.id"
-          >
-            <input v-model="it.enabled" type="checkbox" @click.stop />
-            <span class="li-body">
-              <span class="li-name">{{ it.kind === 'image' ? '图片水印' : it.text || '文字水印' }}</span>
-              <span class="li-time" :class="{ limited: it.hasTime }">{{ summaryOf(it) }}</span>
-            </span>
-            <span class="li-ops">
-              <button class="ghost tiny" :disabled="idx === 0" @click.stop="move(it.id, -1)" title="上移">↑</button>
-              <button class="ghost tiny" :disabled="idx === items.length - 1" @click.stop="move(it.id, 1)" title="下移">↓</button>
-              <button class="ghost tiny" @click.stop="duplicate(it.id)" title="复制">⧉</button>
-              <button class="ghost tiny" @click.stop="remove(it.id)" title="删除">×</button>
-            </span>
-          </div>
+          <!-- motion-v：新增/删除/排序都带过渡，layout 让重排平滑滑动 -->
+          <AnimatePresence :initial="false">
+            <motion.div
+              v-for="(it, idx) in items"
+              :key="it.id"
+              layout
+              class="listitem"
+              :class="{ on: it.id === selectedId }"
+              :initial="{ opacity: 0, x: -12 }"
+              :animate="{ opacity: 1, x: 0 }"
+              :exit="{ opacity: 0, x: 12 }"
+              :transition="{ duration: 0.15 }"
+              @click="selectedId = it.id"
+            >
+              <AppSwitch
+                :model-value="it.enabled"
+                @update:model-value="(v) => (it.enabled = v)"
+                @click.stop
+              />
+              <span class="li-body">
+                <span class="li-name">{{ it.kind === 'image' ? '图片水印' : it.text || '文字水印' }}</span>
+                <span class="li-time" :class="{ limited: it.hasTime }">{{ summaryOf(it) }}</span>
+              </span>
+              <span class="li-ops">
+                <button class="ghost tiny" :disabled="idx === 0" @click.stop="move(it.id, -1)" title="上移">↑</button>
+                <button class="ghost tiny" :disabled="idx === items.length - 1" @click.stop="move(it.id, 1)" title="下移">↓</button>
+                <button class="ghost tiny" @click.stop="duplicate(it.id)" title="复制">⧉</button>
+                <button class="ghost tiny" @click.stop="remove(it.id)" title="删除">×</button>
+              </span>
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         <div class="row" style="margin-top: 10px">
@@ -670,23 +689,22 @@ async function pickOutput() {
           <div class="grid2" style="margin-top: 10px">
             <div class="field">
               <label>文字颜色</label>
-              <input v-model="selected.color" type="color" class="color" />
+              <AppColor :model-value="selected.color || '#ffffff'" @update:model-value="(v) => (selected.color = v)" />
             </div>
             <div class="field">
               <label>描边宽度</label>
-              <input v-model.number="selected.borderW" type="number" min="0" max="10" />
+              <AppNumber :model-value="selected.borderW" :min="0" :max="10" :step="1" @update:model-value="(v) => (selected.borderW = v)" />
             </div>
           </div>
           <div class="grid2" style="margin-top: 10px">
             <div class="field">
               <label>描边颜色</label>
-              <input v-model="selected.borderColor" type="color" class="color" />
+              <AppColor :model-value="selected.borderColor || '#000000'" @update:model-value="(v) => (selected.borderColor = v)" />
             </div>
-            <div class="field" style="justify-content: flex-end">
-              <label class="check">
-                <input v-model="selected.box" type="checkbox" />
+            <div class="field" style="justify-content: flex-end; padding-bottom: 4px">
+              <AppCheck :model-value="!!selected.box" @update:model-value="(v) => (selected.box = v)">
                 加背景框
-              </label>
+              </AppCheck>
             </div>
           </div>
         </template>
@@ -695,7 +713,7 @@ async function pickOutput() {
 
         <div class="field">
           <label>不透明度 {{ Math.round(selected.opacity * 100) }}%</label>
-          <input v-model.number="selected.opacity" type="range" min="0.05" max="1" step="0.01" />
+          <AppSlider :model-value="selected.opacity" :min="0.05" :max="1" :step="0.01" @update:model-value="(v) => (selected.opacity = v)" />
         </div>
 
         <template v-if="selected.hasTime">
@@ -703,11 +721,11 @@ async function pickOutput() {
           <div class="grid2">
             <div class="field">
               <label>起始（秒）</label>
-              <input v-model.number="selected.start" type="number" min="0" step="0.1" @change="afterTimeEdit(selected)" />
+              <AppNumber :model-value="selected.start" :min="0" :step="0.1" @update:model-value="(v) => { selected.start = v; afterTimeEdit(selected) }" />
             </div>
             <div class="field">
               <label>结束（秒，0 = 到片尾）</label>
-              <input v-model.number="selected.end" type="number" min="0" step="0.1" @change="afterTimeEdit(selected)" />
+              <AppNumber :model-value="selected.end" :min="0" :step="0.1" @update:model-value="(v) => { selected.end = v; afterTimeEdit(selected) }" />
             </div>
           </div>
           <div class="row" style="margin-top: 8px">
@@ -721,11 +739,14 @@ async function pickOutput() {
         <div class="grid2">
           <div class="field">
             <label>输出分辨率</label>
-            <select v-model="targetMode">
-              <option value="source">与源相同</option>
-              <option value="720">720p（1280×720）</option>
-              <option value="1080">1080p（1920×1080）</option>
-            </select>
+            <AppSelect
+              v-model="targetMode"
+              :options="[
+                { value: 'source', label: '与源相同' },
+                { value: '720', label: '720p（1280×720）' },
+                { value: '1080', label: '1080p（1920×1080）' },
+              ]"
+            />
           </div>
           <div class="field">
             <label>水印数量</label>
@@ -1106,12 +1127,6 @@ async function pickOutput() {
   height: 1px;
   background: var(--border);
   margin: 13px 0;
-}
-
-.color {
-  padding: 2px;
-  height: 32px;
-  cursor: pointer;
 }
 
 .calc {

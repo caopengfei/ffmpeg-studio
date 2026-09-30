@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { ProgressRoot, ProgressIndicator, CollapsibleRoot, CollapsibleTrigger, CollapsibleContent } from 'reka-ui'
 import { formatTime, formatSize } from '../api'
 
 const props = defineProps({
@@ -52,9 +53,14 @@ const etaText = computed(() => {
       </span>
     </div>
 
-    <div class="bar" :class="{ indet: indeterminate }">
-      <div class="fill" :class="{ ok: result?.ok, err: result && !result.ok && !result.canceled }" :style="{ width: pct + '%' }"></div>
-    </div>
+    <!-- indeterminate 时传 null，Reka 会带上 data-state=indeterminate -->
+    <ProgressRoot :model-value="indeterminate ? null : pct" class="bar" :class="{ indet: indeterminate }">
+      <ProgressIndicator
+        class="fill"
+        :class="{ ok: result?.ok, err: result && !result.ok && !result.canceled }"
+        :style="{ width: (indeterminate ? 100 : pct) + '%' }"
+      />
+    </ProgressRoot>
 
     <div v-if="running" class="meta mono">
       <span v-if="progress.outTime > 0">已处理 {{ formatTime(progress.outTime) }}</span>
@@ -76,12 +82,15 @@ const etaText = computed(() => {
         <button class="tiny primary" @click="emit('openFile', result.outputPath)">打开文件</button>
         <button class="tiny" @click="emit('openDir', result.outputPath)">打开所在目录</button>
       </template>
-      <button class="tiny ghost" @click="showLogs = !showLogs">
-        {{ showLogs ? '收起日志' : `日志${logs.length ? `（${logs.length}）` : ''}` }}
-      </button>
+      <CollapsibleRoot v-model:open="showLogs" class="logs-root">
+        <CollapsibleTrigger class="tiny ghost log-toggle">
+          {{ showLogs ? '收起日志' : `日志${logs.length ? `（${logs.length}）` : ''}` }}
+        </CollapsibleTrigger>
+        <CollapsibleContent class="u-coll-content">
+          <pre class="logs scrollbox">{{ logs.join('\n') || '暂无日志' }}</pre>
+        </CollapsibleContent>
+      </CollapsibleRoot>
     </div>
-
-    <pre v-if="showLogs" class="logs scrollbox">{{ logs.join('\n') || '暂无日志' }}</pre>
   </div>
 </template>
 
@@ -113,6 +122,7 @@ const etaText = computed(() => {
 }
 
 .bar {
+  display: block;
   height: 7px;
   border-radius: 4px;
   background: #eef1f5;
@@ -120,6 +130,7 @@ const etaText = computed(() => {
 }
 
 .fill {
+  display: block;
   height: 100%;
   background: var(--primary);
   border-radius: 4px;
@@ -136,8 +147,18 @@ const etaText = computed(() => {
 
 .bar.indet .fill {
   background: linear-gradient(90deg, #93b4f7 0%, #2563eb 50%, #93b4f7 100%);
-  width: 100% !important;
+  background-size: 200% 100%;
+  animation: indet-slide 1.1s linear infinite;
   opacity: 0.55;
+}
+
+@keyframes indet-slide {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
 }
 
 .meta {
@@ -181,9 +202,28 @@ const etaText = computed(() => {
 
 .actions {
   display: flex;
+  align-items: flex-start;
   gap: 8px;
   margin-top: 10px;
   flex-wrap: wrap;
+}
+
+.logs-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.log-toggle {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-dim);
+  align-self: flex-start;
+}
+
+.log-toggle:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: #f7f9fc;
 }
 
 .logs {

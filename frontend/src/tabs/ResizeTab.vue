@@ -5,6 +5,10 @@ import MediaInfoCard from '../components/MediaInfoCard.vue'
 import CommandPreview from '../components/CommandPreview.vue'
 import ProgressPanel from '../components/ProgressPanel.vue'
 import { api } from '../api'
+import AppSelect from '../ui/AppSelect.vue'
+import AppNumber from '../ui/AppNumber.vue'
+import AppCheck from '../ui/AppCheck.vue'
+import { ToggleGroupRoot, ToggleGroupItem } from 'reka-ui'
 import { useTask } from '../composables/useTask'
 import { useMediaSource, useCommandPreview, baseFields } from '../composables/useTab'
 
@@ -40,8 +44,8 @@ watch(preset, (k) => {
 
 // 宽高联动用显式事件处理，不用互相 watch ——
 // 双向 watch 会形成回环，浮点误差下可能反复触发
-function onWidthInput(e) {
-  const w = Number(e.target.value) || 0
+function onWidthInput(v) {
+  const w = Number(v) || 0
   width.value = w
   if (keepAspect.value && w) {
     const h = Math.round(w / srcRatio.value)
@@ -49,8 +53,8 @@ function onWidthInput(e) {
   }
 }
 
-function onHeightInput(e) {
-  const h = Number(e.target.value) || 0
+function onHeightInput(v) {
+  const h = Number(v) || 0
   height.value = h
   if (keepAspect.value && h) {
     const w = Math.round(h * srcRatio.value)
@@ -140,43 +144,39 @@ watch(
   <div v-if="file" class="card">
     <h2>目标尺寸</h2>
 
-    <div class="presets">
-      <button
-        v-for="p in PRESETS"
-        :key="p.key"
-        class="preset"
-        :class="{ on: preset === p.key }"
-        @click="preset = p.key"
-      >
+    <ToggleGroupRoot v-model="preset" type="single" class="u-tg">
+      <ToggleGroupItem v-for="p in PRESETS" :key="p.key" :value="p.key" class="u-tg-item">
         {{ p.label }}
-      </button>
-    </div>
+      </ToggleGroupItem>
+    </ToggleGroupRoot>
 
     <div class="grid3" style="margin-top: 14px">
       <div class="field">
         <label>宽度（像素）</label>
-        <input :value="width" type="number" min="2" step="2" @input="onWidthInput" />
+        <AppNumber :model-value="width" :min="2" :step="2" @update:model-value="onWidthInput" />
       </div>
       <div class="field">
         <label>高度（像素）{{ keepAspect ? '（自动）' : '' }}</label>
-        <input :value="height" type="number" min="2" step="2" :disabled="keepAspect" @input="onHeightInput" />
+        <AppNumber :model-value="height" :min="2" :step="2" :disabled="keepAspect" @update:model-value="onHeightInput" />
       </div>
       <div class="field">
         <label>缩放算法</label>
-        <select v-model="flags">
-          <option value="lanczos">lanczos（画质最好，推荐）</option>
-          <option value="bicubic">bicubic</option>
-          <option value="bilinear">bilinear</option>
-          <option value="area">area（缩小最干净）</option>
-          <option value="neighbor">neighbor（最快，锯齿明显）</option>
-        </select>
+        <AppSelect
+          v-model="flags"
+          :options="[
+            { value: 'lanczos', label: 'lanczos（画质最好，推荐）' },
+            { value: 'bicubic', label: 'bicubic' },
+            { value: 'bilinear', label: 'bilinear' },
+            { value: 'area', label: 'area（缩小最干净）' },
+            { value: 'neighbor', label: 'neighbor（最快，锯齿明显）' },
+          ]"
+        />
       </div>
     </div>
 
-    <label class="check" style="margin-top: 12px">
-      <input v-model="keepAspect" type="checkbox" />
+    <AppCheck v-model="keepAspect" style="margin-top: 12px">
       锁定宽高比（改一边另一边自动算，且自动取偶数）
-    </label>
+    </AppCheck>
 
     <div v-if="sizeNote" class="banner info" style="margin-top: 12px; margin-bottom: 0">{{ sizeNote }}</div>
     <div v-if="aspectWarning" class="banner warn" style="margin-top: 10px; margin-bottom: 0">{{ aspectWarning }}</div>
@@ -214,25 +214,6 @@ watch(
 </template>
 
 <style scoped>
-.presets {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.preset {
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 20px;
-}
-
-.preset.on {
-  border-color: var(--primary);
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-weight: 500;
-}
-
 .mono {
   font-size: 12px;
 }
