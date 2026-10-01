@@ -56,8 +56,9 @@
 # 开发模式（前端热重载）
 wails dev
 
-# 构建单文件 exe
+# 构建单文件 exe（含图标；裸 go build 不嵌图标，所以先打 .syso）
 cd frontend && npm install && npm run build && cd ..
+go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64 --icon build/windows/icon.ico --manifest gui --out rsrc --product-name ffmpeg-studio --file-description "FFmpeg Studio" --original-filename ffmpeg-studio.exe
 go build -tags production -ldflags "-H windowsgui -s -w" -o build/bin/ffmpeg-studio.exe .
 ```
 

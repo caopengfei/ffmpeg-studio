@@ -6,7 +6,7 @@ import {
   MIN_WIDTH_PX,
   IMAGE_RATIO_RANGE,
   TEXT_RATIO_RANGE,
-} from '../src/composables/watermarkLayout.js'
+} from '../src/lib/watermarkLayout.js'
 
 const [IMG_MIN, IMG_MAX] = IMAGE_RATIO_RANGE
 const [TXT_MIN, TXT_MAX] = TEXT_RATIO_RANGE

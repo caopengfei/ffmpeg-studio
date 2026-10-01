@@ -1,6 +1,8 @@
 # 构建产物
 build/bin/
 frontend/node_modules/
+# go-winres 生成的图标资源（CI/本地构建时现打，不进仓库）
+*.syso
 
 # dist 是前端构建产物，但目录本身必须进仓库：
 # main.go 用 //go:embed all:frontend/dist 嵌入前端，全新 clone 后目录不存在会让

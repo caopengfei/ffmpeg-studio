@@ -13,7 +13,7 @@
 - 后端不动：Go + `wailsjs/go/main/App` + `wailsjs/runtime/runtime` 原样复用。
 - `frontend/src/api.js` → `frontend/src/api.ts`：仅转 TS + 加类型，不改函数签名，保证 Spec JSON 契约不漂移。
 - 依赖替换：删 `vue` / `reka-ui` / `@ark-ui/vue` / `motion-v` / `@vitejs/plugin-vue`；
-  换 `@vitejs/plugin-react`、`heroui`、`tailwindcss@4` + `@tailwindcss/vite`、`framer-motion`。
+  换 `@vitejs/plugin-react`、`@heroui/react`（v3 包名，npm 上无 `heroui` 包）、`tailwindcss@4` + `@tailwindcss/vite`、`framer-motion`。
 - 不引入 `react-router`，沿用 `current` state 切 Tab。
 - 目录 1:1 对应：
   - `src/App.tsx` ← `App.vue`
@@ -33,12 +33,12 @@
 | Tabs 侧栏导航 | 自定义侧栏 + HeroUI Button/Chip | 保留 216px 侧栏 + 选中竖条，不硬套 HeroUI Tabs |
 | AppSelect | HeroUI Select | value 统一字符串，业务侧 Number() 不变 |
 | AppSlider | HeroUI Slider | step/min/max 原样传 |
-| AppNumber | HeroUI NumberInput | 宽高 / 起止时间输入 |
+| AppNumber | HeroUI NumberField（v3 无 NumberInput） | 宽高 / 起止时间输入 |
 | AppCheck / AppSwitch | HeroUI Checkbox / Switch | 开关行为不变 |
-| AppColor（Ark ColorPicker） | 原生 input[type=color] + HeroUI Popover/Button 包皮 | HeroUI v3 无 ColorPicker |
+| AppColor（Ark ColorPicker） | 原生 input[type=color] + HeroUI Popover/Button 包皮 | v3.2.6 自带 ColorPicker 也可用，实施时二选一，默认原生以减风险 |
 | ToggleGroup / SegmentGroup | HeroUI ButtonGroup | 胶囊组/分段选择外观统一用 ButtonGroup 还原 |
 | Collapsible | HeroUI Accordion | 命令预览 / 日志 / 手动安装折叠块 |
-| ProgressRoot | HeroUI Progress | 下载 / 转码进度条 |
+| ProgressRoot | HeroUI ProgressBar（v3 无 Progress） | 下载 / 转码进度条 |
 | motion-v AnimatePresence | framer-motion | opacity/y 切换参数照搬（0.16s easeOut） |
 | VideoScrubber / 水印拖拽 / 时间轴 | 手写 div + pointer 事件 | HeroUI 只给卡片按钮皮，拖拽逻辑逐行平移 |
 | style.css 1325 行 | Tailwind v4 @theme + 少量自定义 CSS | token 进 @theme，仅浅色；水印特殊样式保留手写 |
@@ -57,7 +57,7 @@
 ## 4. 样式 / 主题
 
 - Tailwind v4 `@theme` 定义 `--color-primary #2563eb` 等，`:root` token 全量搬入。
-- `HeroUIProvider` 固定 `defaultTheme="light"`，不做暗色切换、不跟随系统。
+- v3 无需 Provider 包裹（零样板）；仅浅色，不做暗色切换、不跟随系统。
 - 字体 / 字号 / 行高（13px/1.6、微软雅黑栈）不变，保证截图可对比。
 - style.css 按三类拆：token → @theme；HeroUI 变体覆盖（tailwind-variants，不用 !important）；
   水印斜纹 / 色条 / 手柄手写 CSS 保留（约 100 行）。

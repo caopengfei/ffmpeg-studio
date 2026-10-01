@@ -114,8 +114,8 @@ const browser = await chromium.launch({ executablePath: CHROME, headless: true }
   await page.goto(BASE, { waitUntil: 'load' })
   await page.waitForTimeout(500)
 
-  // 选视频
-  await page.locator('.card button.primary').first().click()
+  // 选视频（点 FilePicker 的「浏览…」；React 版用 HeroUI Button，无 .primary 类）
+  await page.getByRole('button', { name: '浏览…' }).first().click()
   await page.waitForTimeout(700)
 
   // 加图片水印
@@ -150,7 +150,8 @@ const browser = await chromium.launch({ executablePath: CHROME, headless: true }
   await mock(page, FF_READY)
   await page.goto(BASE, { waitUntil: 'load' })
   await page.waitForTimeout(500)
-  await page.locator('.card button.primary').first().click()
+  // 选视频（点 FilePicker 的「浏览…」；React 版用 HeroUI Button，无 .primary 类）
+  await page.getByRole('button', { name: '浏览…' }).first().click()
   await page.waitForTimeout(700)
   await page.locator('button', { hasText: '+ 图片水印' }).first().click()
   await page.waitForTimeout(300)

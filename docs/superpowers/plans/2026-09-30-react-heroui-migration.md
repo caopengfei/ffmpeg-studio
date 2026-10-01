@@ -6,7 +6,7 @@
 
 **Architecture:** 复用 `wailsjs` 纯 JS 绑定（`api.ts` 只转 TS 不改签名）；`composables` → `hooks`、`ui` → HeroUI 封装、`components`/`tabs` 逐文件平移；水印纯函数原样搬运（保持 `.js`，测试只改 import 路径）；全程在 `migrate/react-heroui` 分支，每迁完一个 Tab 即 `npm run build` 验证。
 
-**Tech Stack:** React 19, HeroUI v3 (`heroui`), Tailwind CSS v4 (`tailwindcss` + `@tailwindcss/vite`), `@vitejs/plugin-react`, `framer-motion`, Vite 7, Node 22, Wails v2 (unchanged), Go backend (untouched).
+**Tech Stack:** React 19, HeroUI v3 (`@heroui/react` 3.x, npm 上无 `heroui` 包；v3 无 Provider 包裹、无 NumberInput/Progress 组件，对应为 NumberField/ProgressBar), Tailwind CSS v4 (`tailwindcss` + `@tailwindcss/vite`), `@vitejs/plugin-react@4` (Vite 7 兼容), `framer-motion`, Vite 7, Node 22, Wails v2 (unchanged), Go backend (untouched).
 
 ---
 
@@ -52,6 +52,9 @@ frontend/
 ```
 
 删文件时机：每个新文件落地且 `npm run build` 通过后再删对应旧文件，不提前删。
+
+**构建注意**：`vite build` 默认清空 `frontend/dist`，会把被跟踪的 `frontend/dist/.gitkeep` 一起删掉。
+每次跑完 `npm run build` 后执行 `git checkout -- frontend/dist/.gitkeep`（若被删）再提交，保持工作树干净。
 
 ---
 
@@ -212,7 +215,7 @@ export const api = {
   preparePreview: (path: string): Promise<any> => Backend.PreparePreview(path),
   mediaURL: (path: string): Promise<string> => Backend.MediaURL(path),
   previewCommand: (spec: any): Promise<{ steps: string[]; err: string }> => Backend.PreviewCommand(spec),
-  startTask: (spec: any): Promise<void> => Backend.StartTask(spec),
+  startTask: (spec: any): Promise<string> => Backend.StartTask(spec),
   cancelTask: (id = ''): Promise<void> => Backend.CancelTask(id),
   taskBusy: (): Promise<boolean> => Backend.TaskBusy(),
   suggestOutputPath: (input: string, kind: string): Promise<string> => Backend.SuggestOutputPath(input, kind),
@@ -463,7 +466,11 @@ export function useTask() {
 
 - [ ] **Step 4: 类型检查 + Commit**
 
-Run:
+先装 React 类型与 tsc（Task 1 未装）：
+```bash
+npm install -D @types/react @types/react-dom typescript
+```
+Run（本地已有 typescript 后 `npx tsc` 即用，无需 `-p`）：
 ```bash
 npx tsc --noEmit --allowJs --jsx react-jsx --esModuleInterop --skipLibCheck --module esnext --moduleResolution bundler --target es2020 src/hooks/useMediaSource.ts src/hooks/useCommandPreview.ts src/hooks/baseFields.ts src/hooks/useTask.ts src/api.ts
 ```
@@ -493,9 +500,9 @@ git commit -m "feat(frontend): port composables to React hooks"
 - `AppNumber`: `{ value: number; min?; max?; step?; disabled?: boolean; placeholder?: string; onChange: (v: number) => void }`（空输入回 0，失焦夹取，沿用 Vue 约定）
 - `AppCheck`: `{ checked: boolean; disabled?: boolean; onChange: (v: boolean) => void; children }`
 - `AppSwitch`: `{ checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }`
-- `AppColor`: `{ value: string; onChange: (hex: string) => void }`（hex `#rrggbb`，与 drawtext 兼容；原生 `<input type="color">` + HeroUI Popover/Button 包皮）
+- `AppColor`: `{ value: string; onChange: (hex: string) => void }`（hex `#rrggbb`，与 drawtext 兼容；原生 `<input type="color">` + HeroUI Popover/Button 包皮；若核对发现 v3 自带 ColorPicker 好用，允许改用，但必须在本 Task 报告中写明）
 
-底层分别用 HeroUI 的 `Select` / `Slider` / `NumberInput` / `Checkbox` / `Switch` / `Popover+Button` 实现。若某组件在 v3 改名或改 props，以 `node_modules/heroui` 自带类型为准并在文件头注释写明映射。
+底层分别用 HeroUI 的 `Select` / `Slider` / `NumberField`（v3 无 NumberInput） / `Checkbox` / `Switch` / `Popover+Button` 实现，全部 `from '@heroui/react'` 导入（v3 无 HeroUIProvider，不包裹）。若某组件在 v3 改名或改 props，以 `node_modules/@heroui/react` 自带类型为准并在文件头注释写明映射。
 
 - [ ] **Step 2: 构建验证**
 
@@ -529,7 +536,7 @@ git commit -m "feat(frontend): HeroUI-based ui primitives (select/slider/number/
 
 - [ ] **Step 3: CommandPreview.tsx** — props `{ steps: string[]; err: string }`；HeroUI Accordion 折叠（触发器文案“将执行的命令”+ N 步 badge + caret）；复制按钮（clipboard + “已复制” 1.5s）；err→banner err；空态“参数填完整后这里会显示要执行的命令”。
 
-- [ ] **Step 4: ProgressPanel.tsx** — props `{ running; progress; stage; logs: string[]; result; onCancel; onOpenFile; onOpenDir }`；HeroUI Progress（indeterminate 时条纹动画保留）；`pct` 夹 0~100；失败自动展开日志（useEffect 监听 result）；结果条 ok/canceled/err 三态文案照搬（含用时秒数）；日志 `<pre>` 最多由 hook 截断。
+- [ ] **Step 4: ProgressPanel.tsx** — props `{ running; progress; stage; logs: string[]; result; onCancel; onOpenFile; onOpenDir }`；HeroUI ProgressBar（indeterminate 时 omit value，条纹动画保留）；`pct` 夹 0~100；失败自动展开日志（useEffect 监听 result）；结果条 ok/canceled/err 三态文案照搬（含用时秒数）；日志 `<pre>` 最多由 hook 截断。
 
 - [ ] **Step 5: VideoScrubber.tsx** — props `{ src; duration; mode: 'range'|'point'; value: {start,end,time?}; onChange }`；`<video controls preload="metadata">` + HeroUI Slider（range 双值/point 单值，step 0.01，`min-steps-between-thumbs` 等价行为若 HeroUI 不支持则手写夹取：`end-start>=0.05`）；滑块动→视频 `currentTime` 跟随（判断哪个手柄动了的逻辑照搬）；`loadedmetadata` 同步 end；下方 AppNumber 起点/终点/时间点 + readout（`formatTime`）；选中时长/全片文案照搬。
 
@@ -554,24 +561,22 @@ git commit -m "feat(frontend): port shared components (picker/info/command/progr
 - Modify: `frontend/src/main.tsx` (Placeholder → App)
 - Modify: `frontend/src/index.css` (补全全部 token 与保留样式)
 
-- [ ] **Step 1: index.css 补全** — 把 `style.css` 的 `:root` token（--bg/#f5f6f8、--panel、--border/#e3e6ea、--border-strong、--text、--text-dim、--text-mute、--primary/#2563eb、--primary-hover、--primary-soft、--ok/warn/err 及其 soft、--radius/--radius-sm）全部搬入 `@theme`（`--color-*`）；侧栏/导航/card/field/row/banner/mode/mono 等布局类原样保留为普通 CSS；水印斜纹/色条/手柄样式原样保留（约 100 行，Task 12 用到）；headless 皮肤（u-sel/u-slider/u-num/u-color/u-check/u-switch/u-tg/u-seg/u-coll）整段删除（HeroUI 接管）。
+- [ ] **Step 1: index.css 补全** — 首行加 HeroUI 样式（`@import "@heroui/react/styles";`，若该子路径不存在则按包内文档调整并在报告写明）；把 `style.css` 的 `:root` token（--bg/#f5f6f8、--panel、--border/#e3e6ea、--border-strong、--text、--text-dim、--text-mute、--primary/#2563eb、--primary-hover、--primary-soft、--ok/warn/err 及其 soft、--radius/--radius-sm）全部搬入 `@theme`（`--color-*`）；侧栏/导航/card/field/row/banner/mode/mono 等布局类原样保留为普通 CSS；水印斜纹/色条/手柄样式原样保留（约 100 行，Task 12 用到）；headless 皮肤（u-sel/u-slider/u-num/u-color/u-check/u-switch/u-tg/u-seg/u-coll）整段删除（HeroUI 接管）。
 
-- [ ] **Step 2: App.tsx** — state 照搬 App.vue：`current='watermark'`、ffInfo/checking/setting/redetecting/copied、install 六件套（installing/installPct/installMsg/installReceived/installTotal/installSpeed/installError/showManual/showTried）；`refresh/browseFFmpeg/redetect/openDownload/openProgramDir/copyProgramDir/startInstall/cancelInstall` 逐函数平移；`ffmpeg:install` 事件 useEffect 订阅；tabs 数组（key/label/desc/icon path，顺序 watermark→transcode→compress→trim→resize→snapshot→gif）不变；侧栏品牌块 + 导航（选中竖条样式保留）+ env-badge + 重新检测；ffmpeg 缺失引导卡整块平移（安装进度条用 HeroUI Progress，手动三步折叠用 Accordion）；页面切换用 framer-motion（initial opacity 0 y 12 / animate 1 0 / exit 0 -8 / 0.16s easeOut，照搬）。
+- [ ] **Step 2: App.tsx** — state 照搬 App.vue：`current='watermark'`、ffInfo/checking/setting/redetecting/copied、install 六件套（installing/installPct/installMsg/installReceived/installTotal/installSpeed/installError/showManual/showTried）；`refresh/browseFFmpeg/redetect/openDownload/openProgramDir/copyProgramDir/startInstall/cancelInstall` 逐函数平移；`ffmpeg:install` 事件 useEffect 订阅；tabs 数组（key/label/desc/icon path，顺序 watermark→transcode→compress→trim→resize→snapshot→gif）不变；侧栏品牌块 + 导航（选中竖条样式保留）+ env-badge + 重新检测；ffmpeg 缺失引导卡整块平移（安装进度条用 HeroUI ProgressBar，手动三步折叠用 Accordion）；页面切换用 framer-motion（initial opacity 0 y 12 / animate 1 0 / exit 0 -8 / 0.16s easeOut，照搬）。
 
 - [ ] **Step 3: main.tsx 换真 App 并构建**
 
 ```tsx
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { HeroUIProvider } from 'heroui'
 import App from './App'
 import './index.css'
 
+// 注：HeroUI v3 无需 Provider 包裹（零样板），直接渲染 App。
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <HeroUIProvider>
-      <App />
-    </HeroUIProvider>
+    <App />
   </React.StrictMode>,
 )
 ```
@@ -646,6 +651,22 @@ git commit -m "feat(frontend): port TrimTab and ResizeTab"
 **Files:**
 - Create: `frontend/src/tabs/SnapshotTab.tsx`
 - Create: `frontend/src/tabs/GifTab.tsx`
+
+- [ ] **Step 0: 统一 per-file 初始化守卫（Task 8 评审遗留，先做）**
+
+Trim/Resize 用的 `lastInitFor` useState 守卫有两个小毛病：多一次空渲染；快速切文件时旧 probe 晚到会 sticky（守卫已消费、新 probe 被挡）。
+改为 `useRef` + key 含 info 指纹，四个预览 Tab 统一用同一模式：
+```tsx
+const initKey = useRef('')
+useEffect(() => {
+  if (!file || !info) return
+  const key = `${file.path}::${info.duration ?? ''}::${info.size ?? ''}`
+  if (initKey.current === key) return
+  initKey.current = key
+  // ...各 Tab 的初始化（range / point / dims）
+}, [file, info])
+```
+把 `TrimTab.tsx` / `ResizeTab.tsx` 的守卫按此改写（行为不变，`npm run build` 通过，单独 commit `refactor(frontend): unify per-file init guard`)，Snapshot/Gif 直接用新模式写。
 
 - [ ] **Step 1: SnapshotTab.tsx** — `useMediaSource('snapshot',{withPreview:true})`；`point={time:0} format='png' quality=2 batch=false batchEvery=5 outDir='' asCover=false coverImage=null`；onFile 后 `point={min(1, duration*0.1)}`；`qualityLabel`（jpg 显示 1 最好/31 最差，否则 1–100）；`buildSpec` 三分支（batch→`{format,quality,batchEvery,outDir}` output ''；asCover→`{asCover:true,coverImage:format}`；单帧→`{time,format,quality}`，字段名不变）；VideoScrubber mode=point（batch 时隐藏预览卡）；批量/封面 AppCheck + divider；`canRun`；按钮文案三态（`抽取 ${formatTime(point.time)} 处的一帧` / 开始批量抽帧 / 写入封面）。
 
@@ -769,6 +790,19 @@ git add .github/workflows/ci.yml tools/ui-verify frontend/package.json
 git commit -m "chore: CI renamed to React, e2e selectors aligned, exe size <X>MB"
 ```
 （把 Step 4 的实际 MB 数填入 `<X>`。）
+
+- [ ] **Step 7: 收尾硬化（评审遗留，非阻塞但本次做完）**
+
+  1. **a11y 标签**：给 `AppSlider` 加可选 `label` prop（替代硬编码 `aria-label="slider"`），给 `AppSwitch` / `AppNumber` / `AppColor` 触发器加可选 `label`/`aria-label`，并在各 Tab 调用处传入对应中文标签。
+  2. **CSS 命名空间检查**：`MediaInfoCard.css` 的 `.cell/.tag/.stream`、各组件 `.panel` 等裸通用类名是全局的——全量 grep 确认无碰撞；有碰撞则加前缀（`mi-`/`pp-`），无碰撞则不动。
+  3. **registerFile Promise 决策**（FilePicker 传 Promise 当 MediaFile 用，Vue 版同病）：改为 `await api.registerFile()` 后再 `onChange`，修掉这个继承来的小 bug。
+  4. **Task 5 Minor #3–#9 顺手修**：copy 超时清理、onMeta isFinite、onUpdate 数组长度、useEffect 赋值 ref、ProgressPanel 默认值、showLogs 新任务重置、codec 缺失 guard。
+  5. **清掉 `u-coll-content` 残留引用**（Task 6 删掉了该全局类，`ProgressPanel.tsx` / `CommandPreview.tsx` 的 className 残留是 inert 的，全部改掉——grep `u-coll-` 确认零残留）。
+  6. **命令预览 dep 补 `info`**（Task 7 评审遗留）：各 Tab 的 `useCommandPreview` dep 数组缺 `info`（Vue 版同病），导致 probe 刚完成时预览可能带旧时长/尺寸——把 `info` 加进每个 Tab 的 dep 数组。
+  7. **注释修正**（Task 9 评审遗留）：Trim/Resize 的守卫注释仍写 “path-keyed”，实际已是 path+duration+size 指纹——改字样。
+  8. **拖拽监听收尾**（Task 11 评审遗留）：五个 `start*` 拖拽只在 `pointerup` 解绑 window 监听——加上 `pointercancel` 同路解绑（与 `up` 同一函数），避免触摸取消/中途卸载时泄漏。
+
+  `npm run build` + `npm test` 通过后与 Step 6 合并提交（commit message 追加 `, hardening`）。
 
 ---
 
